@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Hoca Müsaitlikleri - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>📆 Hoca Müsaitlik Yönetimi</h1>
+            <a href="{{ url_for('admin.availability_add') }}" class="btn btn-primary">
+                ➕ Yeni Müsaitlik Ekle
+            </a>
+        </div>
+        
+        <!-- Müsaitlik Tablosu -->
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Öğretim Üyesi</th>
+                        <th>Gün</th>
+                        <th>Başlangıç</th>
+                        <th>Bitiş</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in availability %}
+                    <tr>
+                        <td>{{ item.id }}</td>
+                        <td>{{ item.instructor_title }} {{ item.instructor_name }}</td>
+                        <td>{{ item.day_of_week }}</td>
+                        <td>{{ item.start_time }}</td>
+                        <td>{{ item.end_time }}</td>
+                        <td>
+                            {% if item.is_available %}
+                                <span class="badge badge-success">✓ Müsait</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Müsait Değil</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin.availability_delete', availability_id=item.id) }}" 
+                               class="btn btn-sm btn-delete"
+                               onclick="return confirm('Bu kaydı silmek istediğinize emin misiniz?')">
+                               🗑️ Sil</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">Henüz müsaitlik kaydı eklenmemiş.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

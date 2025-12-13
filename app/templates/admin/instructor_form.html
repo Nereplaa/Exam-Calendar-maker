@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Öğretim Üyesi Düzenle' if instructor else 'Yeni Öğretim Üyesi' }} - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>👨‍🏫 {{ 'Öğretim Üyesi Düzenle' if instructor else 'Yeni Öğretim Üyesi Ekle' }}</h1>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <!-- Ad Soyad -->
+                <div class="form-group">
+                    <label for="name" class="form-label">Ad Soyad *</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        class="form-control"
+                        value="{{ instructor.name if instructor else '' }}"
+                        placeholder="Örn: Ahmet Yılmaz"
+                        required
+                    >
+                </div>
+                
+                <!-- Unvan -->
+                <div class="form-group">
+                    <label for="title" class="form-label">Unvan</label>
+                    <select id="title" name="title" class="form-control">
+                        <option value="">-- Unvan Seçin --</option>
+                        <option value="Prof. Dr." {{ 'selected' if instructor and instructor.title == 'Prof. Dr.' else '' }}>Prof. Dr.</option>
+                        <option value="Doç. Dr." {{ 'selected' if instructor and instructor.title == 'Doç. Dr.' else '' }}>Doç. Dr.</option>
+                        <option value="Dr. Öğr. Üyesi" {{ 'selected' if instructor and instructor.title == 'Dr. Öğr. Üyesi' else '' }}>Dr. Öğr. Üyesi</option>
+                        <option value="Öğr. Gör." {{ 'selected' if instructor and instructor.title == 'Öğr. Gör.' else '' }}>Öğr. Gör.</option>
+                        <option value="Arş. Gör." {{ 'selected' if instructor and instructor.title == 'Arş. Gör.' else '' }}>Arş. Gör.</option>
+                    </select>
+                </div>
+                
+                <!-- E-posta -->
+                <div class="form-group">
+                    <label for="email" class="form-label">E-posta</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-control"
+                        value="{{ instructor.email if instructor else '' }}"
+                        placeholder="ornek@kstu.edu.tr"
+                    >
+                </div>
+                
+                <!-- Telefon -->
+                <div class="form-group">
+                    <label for="phone" class="form-label">Telefon</label>
+                    <input 
+                        type="text" 
+                        id="phone" 
+                        name="phone" 
+                        class="form-control"
+                        value="{{ instructor.phone if instructor else '' }}"
+                        placeholder="0262 XXX XX XX"
+                    >
+                </div>
+                
+                <!-- Bölüm Seçimi -->
+                <div class="form-group">
+                    <label for="department_id" class="form-label">Bölüm *</label>
+                    <select id="department_id" name="department_id" class="form-control" required>
+                        <option value="">-- Bölüm Seçin --</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.id }}" 
+                                {{ 'selected' if instructor and instructor.department_id == dept.id else '' }}>
+                                {{ dept.name }} ({{ dept.faculty_name }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 {{ 'Güncelle' if instructor else 'Kaydet' }}
+                    </button>
+                    <a href="{{ url_for('admin.instructors_list') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

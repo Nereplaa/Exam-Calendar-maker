@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Öğretim Üyeleri - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>👨‍🏫 Öğretim Üyesi Yönetimi</h1>
+            <a href="{{ url_for('admin.instructor_add') }}" class="btn btn-primary">
+                ➕ Yeni Öğretim Üyesi Ekle
+            </a>
+        </div>
+        
+        <!-- Öğretim Üyesi Tablosu -->
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Ad Soyad</th>
+                        <th>Unvan</th>
+                        <th>E-posta</th>
+                        <th>Bölüm</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instructor in instructors %}
+                    <tr>
+                        <td>{{ instructor.id }}</td>
+                        <td>{{ instructor.name }}</td>
+                        <td>{{ instructor.title or '-' }}</td>
+                        <td>{{ instructor.email or '-' }}</td>
+                        <td>{{ instructor.department_name }}</td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin.instructor_edit', instructor_id=instructor.id) }}" 
+                               class="btn btn-sm btn-edit">✏️ Düzenle</a>
+                            <a href="{{ url_for('admin.instructor_delete', instructor_id=instructor.id) }}" 
+                               class="btn btn-sm btn-delete"
+                               onclick="return confirm('Bu öğretim üyesini silmek istediğinize emin misiniz?')">
+                               🗑️ Sil</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">Henüz öğretim üyesi eklenmemiş.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Yeni Müsaitlik - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>📆 Yeni Müsaitlik Ekle</h1>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <!-- Öğretim Üyesi Seçimi -->
+                <div class="form-group">
+                    <label for="instructor_id" class="form-label">Öğretim Üyesi *</label>
+                    <select id="instructor_id" name="instructor_id" class="form-control" required>
+                        <option value="">-- Öğretim Üyesi Seçin --</option>
+                        {% for inst in instructors %}
+                            <option value="{{ inst.id }}">
+                                {{ inst.title }} {{ inst.name }} ({{ inst.department_name }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Gün Seçimi -->
+                <div class="form-group">
+                    <label for="day_of_week" class="form-label">Gün *</label>
+                    <select id="day_of_week" name="day_of_week" class="form-control" required>
+                        <option value="">-- Gün Seçin --</option>
+                        <option value="Pazartesi">Pazartesi</option>
+                        <option value="Salı">Salı</option>
+                        <option value="Çarşamba">Çarşamba</option>
+                        <option value="Perşembe">Perşembe</option>
+                        <option value="Cuma">Cuma</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <!-- Başlangıç Saati -->
+                    <div class="form-group">
+                        <label for="start_time" class="form-label">Başlangıç Saati *</label>
+                        <select id="start_time" name="start_time" class="form-control" required>
+                            <option value="09:00">09:00</option>
+                            <option value="10:00">10:00</option>
+                            <option value="11:00">11:00</option>
+                            <option value="12:00">12:00</option>
+                            <option value="13:00">13:00</option>
+                            <option value="14:00">14:00</option>
+                            <option value="15:00">15:00</option>
+                            <option value="16:00">16:00</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Bitiş Saati -->
+                    <div class="form-group">
+                        <label for="end_time" class="form-label">Bitiş Saati *</label>
+                        <select id="end_time" name="end_time" class="form-control" required>
+                            <option value="10:00">10:00</option>
+                            <option value="11:00">11:00</option>
+                            <option value="12:00">12:00</option>
+                            <option value="13:00">13:00</option>
+                            <option value="14:00">14:00</option>
+                            <option value="15:00">15:00</option>
+                            <option value="16:00">16:00</option>
+                            <option value="17:00" selected>17:00</option>
+                            <option value="18:00">18:00</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Müsaitlik Durumu -->
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_available" checked>
+                        <span>✓ Bu saatlerde müsait</span>
+                    </label>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 Kaydet
+                    </button>
+                    <a href="{{ url_for('admin.availability_list') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

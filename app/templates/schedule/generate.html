@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Otomatik Planlama - Sınav Programı{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>🤖 Otomatik Sınav Planlaması</h1>
+                <p>Sınav döneminin tarihlerini girin, sistem otomatik olarak planlama yapacaktır.</p>
+            </div>
+            
+            <!-- Bilgi Kutusu -->
+            <div class="info-box">
+                <h4>📋 Planlama Kuralları:</h4>
+                <ul>
+                    <li>Dersler öğrenci sayısına göre önceliklendirilir</li>
+                    <li>Derslik kapasitesi öğrenci sayısından büyük olmalıdır</li>
+                    <li>Bir derslikte aynı anda tek sınav yapılır</li>
+                    <li>Bir hoca aynı anda tek sınava girebilir</li>
+                    <li>Hoca müsaitlik bilgileri dikkate alınır</li>
+                    <li>Hafta sonları sınav yapılmaz</li>
+                </ul>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <div class="form-row">
+                    <!-- Başlangıç Tarihi -->
+                    <div class="form-group">
+                        <label for="start_date" class="form-label">Sınav Dönemi Başlangıcı *</label>
+                        <input 
+                            type="date" 
+                            id="start_date" 
+                            name="start_date" 
+                            class="form-control"
+                            value="{{ default_start }}"
+                            required
+                        >
+                    </div>
+                    
+                    <!-- Bitiş Tarihi -->
+                    <div class="form-group">
+                        <label for="end_date" class="form-label">Sınav Dönemi Bitişi *</label>
+                        <input 
+                            type="date" 
+                            id="end_date" 
+                            name="end_date" 
+                            class="form-control"
+                            value="{{ default_end }}"
+                            required
+                        >
+                    </div>
+                </div>
+                
+                <!-- Uyarı -->
+                <div class="warning-box">
+                    ⚠️ <strong>Dikkat:</strong> Bu işlem mevcut sınav programını silecek ve yeni bir program oluşturacaktır.
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        🚀 Planlamayı Başlat
+                    </button>
+                    <a href="{{ url_for('schedule.view_schedule') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

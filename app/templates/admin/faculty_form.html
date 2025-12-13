@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Fakülte Düzenle' if faculty else 'Yeni Fakülte' }} - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>🏛️ {{ 'Fakülte Düzenle' if faculty else 'Yeni Fakülte Ekle' }}</h1>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <!-- Fakülte Adı -->
+                <div class="form-group">
+                    <label for="name" class="form-label">Fakülte Adı *</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        class="form-control"
+                        value="{{ faculty.name if faculty else '' }}"
+                        placeholder="Örn: Mühendislik Fakültesi"
+                        required
+                    >
+                </div>
+                
+                <!-- Fakülte Kodu -->
+                <div class="form-group">
+                    <label for="code" class="form-label">Fakülte Kodu *</label>
+                    <input 
+                        type="text" 
+                        id="code" 
+                        name="code" 
+                        class="form-control"
+                        value="{{ faculty.code if faculty else '' }}"
+                        placeholder="Örn: MUH"
+                        maxlength="10"
+                        required
+                    >
+                    <small>Kısa kod (max 10 karakter)</small>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 {{ 'Güncelle' if faculty else 'Kaydet' }}
+                    </button>
+                    <a href="{{ url_for('admin.faculties_list') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Ana Sayfa - Sınav Programı{% endblock %}
+
+{% block content %}
+<!-- ========================================== -->
+<!-- HERO BÖLÜMÜ (Karşılama Alanı) -->
+<!-- ========================================== -->
+<section class="hero">
+    <div class="hero-content">
+        <h1>🎓 Üniversite Sınav Programı</h1>
+        <p class="hero-subtitle">
+            Sınavlarınızı otomatik olarak planlayın, 
+            çakışmaları önleyin, derslikleri verimli kullanın.
+        </p>
+        
+        <div class="hero-buttons">
+            <a href="/login" class="btn btn-primary">Giriş Yap</a>
+            <a href="/register" class="btn btn-secondary">Kayıt Ol</a>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================== -->
+<!-- ÖZELLİKLER BÖLÜMÜ -->
+<!-- ========================================== -->
+<section class="features">
+    <div class="container">
+        <h2 class="section-title">Özellikler</h2>
+        
+        <div class="features-grid">
+            <!-- Özellik 1 -->
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3>Ders Yönetimi</h3>
+                <p>Dersleri, öğretim üyelerini ve öğrenci sayılarını kolayca yönetin.</p>
+            </div>
+            
+            <!-- Özellik 2 -->
+            <div class="feature-card">
+                <div class="feature-icon">🏫</div>
+                <h3>Derslik Yönetimi</h3>
+                <p>Derslik kapasitelerini tanımlayın, uygun salonları belirleyin.</p>
+            </div>
+            
+            <!-- Özellik 3 -->
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>Otomatik Planlama</h3>
+                <p>Akıllı algoritma ile sınavları otomatik olarak yerleştirin.</p>
+            </div>
+            
+            <!-- Özellik 4 -->
+            <div class="feature-card">
+                <div class="feature-icon">⚠️</div>
+                <h3>Çakışma Kontrolü</h3>
+                <p>Öğrenci ve hoca çakışmalarını otomatik olarak tespit edin.</p>
+            </div>
+            
+            <!-- Özellik 5 -->
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Raporlama</h3>
+                <p>Sınav programını PDF veya Excel olarak dışa aktarın.</p>
+            </div>
+            
+            <!-- Özellik 6 -->
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3>Çoklu Kullanıcı</h3>
+                <p>Admin, Bölüm Yetkilisi, Hoca ve Öğrenci rolleri.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================== -->
+<!-- NASIL ÇALIŞIR BÖLÜMÜ -->
+<!-- ========================================== -->
+<section class="how-it-works">
+    <div class="container">
+        <h2 class="section-title">Nasıl Çalışır?</h2>
+        
+        <div class="steps">
+            <!-- Adım 1 -->
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Verileri Girin</h3>
+                <p>Dersleri, derslikleri ve hoca müsaitliklerini sisteme girin.</p>
+            </div>
+            
+            <!-- Adım 2 -->
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Planlamayı Başlatın</h3>
+                <p>Otomatik planlama butonuna tıklayın.</p>
+            </div>
+            
+            <!-- Adım 3 -->
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Sonuçları Görüntüleyin</h3>
+                <p>Oluşturulan programı inceleyin ve onaylayın.</p>
+            </div>
+            
+            <!-- Adım 4 -->
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3>Dışa Aktarın</h3>
+                <p>Programı PDF veya Excel olarak indirin.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

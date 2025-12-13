@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Kayıt Ol - Sınav Programı{% endblock %}
+
+{% block content %}
+<!-- ========================================== -->
+<!-- KAYIT SAYFASI -->
+<!-- ========================================== -->
+<section class="auth-section">
+    <div class="container">
+        <div class="auth-card">
+            <!-- Başlık -->
+            <div class="auth-header">
+                <h1>📝 Kayıt Ol</h1>
+                <p>Yeni hesap oluşturun</p>
+            </div>
+            
+            <!-- Kayıt Formu -->
+            <form method="POST" action="{{ url_for('auth.register') }}" class="auth-form">
+                <!-- Ad Soyad -->
+                <div class="form-group">
+                    <label for="full_name" class="form-label">Ad Soyad</label>
+                    <input 
+                        type="text" 
+                        id="full_name" 
+                        name="full_name" 
+                        class="form-control" 
+                        placeholder="Adınızı ve soyadınızı girin"
+                        required
+                    >
+                </div>
+                
+                <!-- E-posta -->
+                <div class="form-group">
+                    <label for="email" class="form-label">E-posta</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-control" 
+                        placeholder="ornek@kstu.edu.tr"
+                        required
+                    >
+                </div>
+                
+                <!-- Kullanıcı Adı -->
+                <div class="form-group">
+                    <label for="username" class="form-label">Kullanıcı Adı</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        class="form-control" 
+                        placeholder="Kullanıcı adı seçin"
+                        required
+                    >
+                </div>
+                
+                <!-- Bölüm Seçimi -->
+                <div class="form-group">
+                    <label for="department_id" class="form-label">Bölüm (Opsiyonel)</label>
+                    <select id="department_id" name="department_id" class="form-control">
+                        <option value="">-- Bölüm Seçin --</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Şifre -->
+                <div class="form-group">
+                    <label for="password" class="form-label">Şifre</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        class="form-control" 
+                        placeholder="En az 6 karakter"
+                        minlength="6"
+                        required
+                    >
+                </div>
+                
+                <!-- Şifre Tekrar -->
+                <div class="form-group">
+                    <label for="password_confirm" class="form-label">Şifre Tekrar</label>
+                    <input 
+                        type="password" 
+                        id="password_confirm" 
+                        name="password_confirm" 
+                        class="form-control" 
+                        placeholder="Şifrenizi tekrar girin"
+                        minlength="6"
+                        required
+                    >
+                </div>
+                
+                <!-- Kayıt Butonu -->
+                <button type="submit" class="btn btn-primary btn-block">
+                    Kayıt Ol
+                </button>
+            </form>
+            
+            <!-- Giriş Linki -->
+            <div class="auth-footer">
+                <p>Zaten hesabınız var mı? <a href="{{ url_for('auth.login') }}">Giriş Yap</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

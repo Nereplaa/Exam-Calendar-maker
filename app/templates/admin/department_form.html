@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Bölüm Düzenle' if department else 'Yeni Bölüm' }} - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>📚 {{ 'Bölüm Düzenle' if department else 'Yeni Bölüm Ekle' }}</h1>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <!-- Bölüm Adı -->
+                <div class="form-group">
+                    <label for="name" class="form-label">Bölüm Adı *</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        class="form-control"
+                        value="{{ department.name if department else '' }}"
+                        placeholder="Örn: Bilgisayar Mühendisliği"
+                        required
+                    >
+                </div>
+                
+                <!-- Bölüm Kodu -->
+                <div class="form-group">
+                    <label for="code" class="form-label">Bölüm Kodu *</label>
+                    <input 
+                        type="text" 
+                        id="code" 
+                        name="code" 
+                        class="form-control"
+                        value="{{ department.code if department else '' }}"
+                        placeholder="Örn: BM"
+                        maxlength="10"
+                        required
+                    >
+                </div>
+                
+                <!-- Fakülte Seçimi -->
+                <div class="form-group">
+                    <label for="faculty_id" class="form-label">Fakülte *</label>
+                    <select id="faculty_id" name="faculty_id" class="form-control" required>
+                        <option value="">-- Fakülte Seçin --</option>
+                        {% for faculty in faculties %}
+                            <option value="{{ faculty.id }}" 
+                                {{ 'selected' if department and department.faculty_id == faculty.id else '' }}>
+                                {{ faculty.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 {{ 'Güncelle' if department else 'Kaydet' }}
+                    </button>
+                    <a href="{{ url_for('admin.departments_list') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

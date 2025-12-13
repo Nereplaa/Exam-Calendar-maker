@@ -1,0 +1,24 @@
+# ==============================================
+# PROJE BAĞIMLILIKLARI (Gerekli Kütüphaneler)
+# ==============================================
+# Bu dosya projenin çalışması için gerekli
+# Python paketlerini listeler.
+#
+# Kurulum için terminal'de şu komutu çalıştırın:
+# pip install -r requirements.txt
+# ==============================================
+
+# Web framework - web uygulaması oluşturmak için
+Flask==3.0.0
+
+# Şifre güvenliği - şifreleri güvenli şekilde saklamak için
+Werkzeug==3.0.1
+
+# PDF oluşturma - sınav programını PDF olarak kaydetmek için
+reportlab==4.0.7
+
+# Excel oluşturma - sınav programını Excel olarak kaydetmek için
+openpyxl==3.1.2
+
+# NOT: SQLite Python ile birlikte gelir, ekstra kurulum gerekmez!
+

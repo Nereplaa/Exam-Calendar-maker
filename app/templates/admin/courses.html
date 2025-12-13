@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Dersler - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>📖 Ders Yönetimi</h1>
+            <a href="{{ url_for('admin.course_add') }}" class="btn btn-primary">
+                ➕ Yeni Ders Ekle
+            </a>
+        </div>
+        
+        <!-- Ders Tablosu -->
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Kod</th>
+                        <th>Ders Adı</th>
+                        <th>Bölüm</th>
+                        <th>Öğretim Üyesi</th>
+                        <th>Öğrenci</th>
+                        <th>Süre</th>
+                        <th>Sınav</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td><span class="badge badge-primary">{{ course.code }}</span></td>
+                        <td>{{ course.name }}</td>
+                        <td>{{ course.department_name }}</td>
+                        <td>{{ course.instructor_title }} {{ course.instructor_name }}</td>
+                        <td>{{ course.student_count }}</td>
+                        <td>{{ course.exam_duration }} dk</td>
+                        <td>
+                            {% if course.has_exam %}
+                                <span class="badge badge-success">✓ Var</span>
+                            {% else %}
+                                <span class="badge badge-warning">✗ Yok</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin.course_edit', course_id=course.id) }}" 
+                               class="btn btn-sm btn-edit">✏️</a>
+                            <a href="{{ url_for('admin.course_delete', course_id=course.id) }}" 
+                               class="btn btn-sm btn-delete"
+                               onclick="return confirm('Bu dersi silmek istediğinize emin misiniz?')">
+                               🗑️</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">Henüz ders eklenmemiş.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

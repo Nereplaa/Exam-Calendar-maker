@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Giriş Yap - Sınav Programı{% endblock %}
+
+{% block content %}
+<!-- ========================================== -->
+<!-- GİRİŞ SAYFASI -->
+<!-- ========================================== -->
+<section class="auth-section">
+    <div class="container">
+        <div class="auth-card">
+            <!-- Başlık -->
+            <div class="auth-header">
+                <h1>🔐 Giriş Yap</h1>
+                <p>Hesabınıza giriş yapın</p>
+            </div>
+            
+            <!-- Giriş Formu -->
+            <form method="POST" action="{{ url_for('auth.login') }}" class="auth-form">
+                <!-- Kullanıcı Adı -->
+                <div class="form-group">
+                    <label for="username" class="form-label">Kullanıcı Adı</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        class="form-control" 
+                        placeholder="Kullanıcı adınızı girin"
+                        required
+                    >
+                </div>
+                
+                <!-- Şifre -->
+                <div class="form-group">
+                    <label for="password" class="form-label">Şifre</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        class="form-control" 
+                        placeholder="Şifrenizi girin"
+                        required
+                    >
+                </div>
+                
+                <!-- Giriş Butonu -->
+                <button type="submit" class="btn btn-primary btn-block">
+                    Giriş Yap
+                </button>
+            </form>
+            
+            <!-- Kayıt Linki -->
+            <div class="auth-footer">
+                <p>Hesabınız yok mu? <a href="{{ url_for('auth.register') }}">Kayıt Ol</a></p>
+            </div>
+            
+            <!-- Test için bilgi -->
+            <div class="auth-info">
+                <p><strong>Test için:</strong></p>
+                <p>Kullanıcı: <code>admin</code></p>
+                <p>Şifre: <code>admin123</code></p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

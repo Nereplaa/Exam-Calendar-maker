@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <!-- Sayfa karakter seti ve görünüm ayarları -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Sayfa başlığı (her sayfada değişebilir) -->
+    <title>{% block title %}Sınav Programı{% endblock %}</title>
+    
+    <!-- CSS dosyası -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Google Fonts - Güzel yazı tipi -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ========================================== -->
+    <!-- NAVİGASYON MENÜSÜ -->
+    <!-- ========================================== -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <!-- Logo ve Site Adı -->
+            <a href="/" class="navbar-brand">
+                🎓 Sınav Programı
+            </a>
+            
+            <!-- Menü Linkleri -->
+            <ul class="navbar-menu">
+                <li><a href="/">Ana Sayfa</a></li>
+                
+                <!-- Giriş yapılmışsa göster -->
+                {% if session.get('user_id') %}
+                    <li><a href="/dashboard">📊 Panel</a></li>
+                    <li><a href="/logout" class="nav-logout">🚪 Çıkış ({{ session.get('username') }})</a></li>
+                {% else %}
+                    <li><a href="/login">🔐 Giriş Yap</a></li>
+                    <li><a href="/register">📝 Kayıt Ol</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+    
+    <!-- ========================================== -->
+    <!-- MESAJ ALANI (Başarı/Hata mesajları) -->
+    <!-- ========================================== -->
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <!-- ========================================== -->
+    <!-- ANA İÇERİK ALANI -->
+    <!-- ========================================== -->
+    <main class="main-content">
+        {% block content %}
+        <!-- Her sayfanın içeriği buraya gelecek -->
+        {% endblock %}
+    </main>
+    
+    <!-- ========================================== -->
+    <!-- FOOTER (Alt Bilgi) -->
+    <!-- ========================================== -->
+    <footer class="footer">
+        <div class="footer-container">
+            <p>© 2025 Kocaeli Sağlık ve Teknoloji Üniversitesi</p>
+            <p>Yazılım Lab I - Proje 2</p>
+        </div>
+    </footer>
+    
+    <!-- JavaScript dosyası -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Derslik Düzenle' if classroom else 'Yeni Derslik' }} - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <div class="form-card">
+            <!-- Başlık -->
+            <div class="form-header">
+                <h1>🏫 {{ 'Derslik Düzenle' if classroom else 'Yeni Derslik Ekle' }}</h1>
+            </div>
+            
+            <!-- Form -->
+            <form method="POST" class="admin-form">
+                <div class="form-row">
+                    <!-- Derslik Adı -->
+                    <div class="form-group">
+                        <label for="name" class="form-label">Derslik Adı *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            class="form-control"
+                            value="{{ classroom.name if classroom else '' }}"
+                            placeholder="Örn: A101"
+                            required
+                        >
+                    </div>
+                    
+                    <!-- Bina -->
+                    <div class="form-group">
+                        <label for="building" class="form-label">Bina</label>
+                        <input 
+                            type="text" 
+                            id="building" 
+                            name="building" 
+                            class="form-control"
+                            value="{{ classroom.building if classroom else '' }}"
+                            placeholder="Örn: A Blok"
+                        >
+                    </div>
+                </div>
+                
+                <!-- Kapasite -->
+                <div class="form-group">
+                    <label for="capacity" class="form-label">Kapasite (kişi) *</label>
+                    <input 
+                        type="number" 
+                        id="capacity" 
+                        name="capacity" 
+                        class="form-control"
+                        value="{{ classroom.capacity if classroom else '50' }}"
+                        min="1"
+                        required
+                    >
+                </div>
+                
+                <!-- Checkbox'lar -->
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            name="has_computer" 
+                            {{ 'checked' if classroom and classroom.has_computer else '' }}
+                        >
+                        <span>💻 Bilgisayar var (Lab)</span>
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            name="is_available" 
+                            {{ 'checked' if (classroom and classroom.is_available) or not classroom else '' }}
+                        >
+                        <span>✓ Sınav için uygun</span>
+                    </label>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 {{ 'Güncelle' if classroom else 'Kaydet' }}
+                    </button>
+                    <a href="{{ url_for('admin.classrooms_list') }}" class="btn btn-secondary">
+                        ❌ İptal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

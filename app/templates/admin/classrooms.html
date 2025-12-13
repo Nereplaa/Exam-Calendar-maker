@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Derslikler - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>🏫 Derslik Yönetimi</h1>
+            <a href="{{ url_for('admin.classroom_add') }}" class="btn btn-primary">
+                ➕ Yeni Derslik Ekle
+            </a>
+        </div>
+        
+        <!-- Derslik Tablosu -->
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Derslik Adı</th>
+                        <th>Bina</th>
+                        <th>Kapasite</th>
+                        <th>Bilgisayar</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classroom in classrooms %}
+                    <tr>
+                        <td>{{ classroom.id }}</td>
+                        <td><strong>{{ classroom.name }}</strong></td>
+                        <td>{{ classroom.building or '-' }}</td>
+                        <td>{{ classroom.capacity }} kişi</td>
+                        <td>
+                            {% if classroom.has_computer %}
+                                <span class="badge badge-success">💻 Var</span>
+                            {% else %}
+                                <span class="badge">Yok</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if classroom.is_available %}
+                                <span class="badge badge-success">✓ Uygun</span>
+                            {% else %}
+                                <span class="badge badge-warning">✗ Uygun Değil</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin.classroom_edit', classroom_id=classroom.id) }}" 
+                               class="btn btn-sm btn-edit">✏️ Düzenle</a>
+                            <a href="{{ url_for('admin.classroom_delete', classroom_id=classroom.id) }}" 
+                               class="btn btn-sm btn-delete"
+                               onclick="return confirm('Bu dersliği silmek istediğinize emin misiniz?')">
+                               🗑️ Sil</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center">Henüz derslik eklenmemiş.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
