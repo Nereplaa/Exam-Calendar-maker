@@ -154,18 +154,24 @@ def check_instructor_available(instructor_id, day_of_week, start_time, end_time)
     Döndürür:
         is_available: Müsait mi? (True/False)
     """
-    # SQL sorgusu - o gün müsait mi?
+    # Önce bu hoca için herhangi bir müsaitlik kaydı var mı kontrol et
+    check_query = "SELECT COUNT(*) as count FROM instructor_availability WHERE instructor_id = ?"
+    check_result = execute_query(check_query, (instructor_id,))
+    
+    # Eğer hiç müsaitlik kaydı yoksa, tüm günlerde müsait kabul et
+    if check_result[0]['count'] == 0:
+        return True
+    
+    # SQL sorgusu - o gün müsait mi? (sadece gün kontrolü yeterli)
     query = """
         SELECT * FROM instructor_availability 
         WHERE instructor_id = ? 
           AND day_of_week = ? 
           AND is_available = 1
-          AND start_time <= ?
-          AND end_time >= ?
     """
     
-    # Sorguyu çalıştır
-    results = execute_query(query, (instructor_id, day_of_week, start_time, end_time))
+    # Sorguyu çalıştır (saat parametreleri artık kullanılmıyor)
+    results = execute_query(query, (instructor_id, day_of_week))
     
     # Sonuç varsa müsait
     return len(results) > 0

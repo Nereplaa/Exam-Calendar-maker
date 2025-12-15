@@ -33,6 +33,7 @@ from app.models.availability import (
     create_availability, update_availability, delete_availability,
     get_all_availability_with_instructor
 )
+from app.models.user import get_all_users, get_user_by_id, delete_user, update_user
 
 # Blueprint oluştur
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -648,4 +649,61 @@ def availability_delete(availability_id):
         flash('Silme sırasında hata oluştu!', 'error')
     
     return redirect(url_for('admin.availability_list'))
+
+
+# ==============================================
+# KULLANICI YÖNETİMİ
+# ==============================================
+
+@bp.route('/users')
+def users_list():
+    """Kullanıcı listesi sayfası."""
+    if not check_admin():
+        flash('Bu sayfaya erişim yetkiniz yok!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    users = get_all_users()
+    return render_template('admin/users.html', users=users)
+
+
+@bp.route('/users/delete/<int:user_id>')
+def user_delete(user_id):
+    """Kullanıcı silme (pasif yapma) işlemi."""
+    if not check_admin():
+        flash('Bu sayfaya erişim yetkiniz yok!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Kendini silmeye çalışıyorsa engelle
+    if user_id == session.get('user_id'):
+        flash('Kendinizi silemezsiniz!', 'error')
+        return redirect(url_for('admin.users_list'))
+    
+    success = delete_user(user_id)
+    
+    if success:
+        flash('Kullanıcı pasif yapıldı!', 'success')
+    else:
+        flash('Silme sırasında hata oluştu!', 'error')
+    
+    return redirect(url_for('admin.users_list'))
+
+
+@bp.route('/users/activate/<int:user_id>')
+def user_activate(user_id):
+    """Kullanıcıyı aktif yapar."""
+    if not check_admin():
+        flash('Bu sayfaya erişim yetkiniz yok!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Kullanıcıyı bul
+    user = get_user_by_id(user_id)
+    
+    if user:
+        # Aktif yap
+        success = update_user(user_id, user['full_name'], user['email'], 
+                             user['role'], user['department_id'], is_active=1)
+        if success:
+            flash('Kullanıcı aktif edildi!', 'success')
+    
+    return redirect(url_for('admin.users_list'))
 

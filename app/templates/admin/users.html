@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Kullanıcılar - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>👥 Kullanıcı Yönetimi</h1>
+        </div>
+        
+        <!-- Kullanıcı Tablosu -->
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Kullanıcı Adı</th>
+                        <th>Ad Soyad</th>
+                        <th>E-posta</th>
+                        <th>Rol</th>
+                        <th>Bölüm</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="badge badge-primary">👑 Admin</span>
+                            {% elif user.role == 'bolum_yetkili' %}
+                                <span class="badge">🏛️ Bölüm Yetkilisi</span>
+                            {% elif user.role == 'hoca' %}
+                                <span class="badge">👨‍🏫 Hoca</span>
+                            {% else %}
+                                <span class="badge">🎓 Öğrenci</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.department_name or '-' }}</td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge badge-success">✓ Aktif</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Pasif</span>
+                            {% endif %}
+                        </td>
+                        <td class="actions">
+                            {% if user.is_active %}
+                                <a href="{{ url_for('admin.user_delete', user_id=user.id) }}" 
+                                   class="btn btn-sm btn-delete"
+                                   onclick="return confirm('Bu kullanıcıyı pasif yapmak istediğinize emin misiniz?')">
+                                   🚫 Pasif Yap</a>
+                            {% else %}
+                                <a href="{{ url_for('admin.user_activate', user_id=user.id) }}" 
+                                   class="btn btn-sm btn-edit">
+                                   ✓ Aktif Yap</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center">Henüz kullanıcı eklenmemiş.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
