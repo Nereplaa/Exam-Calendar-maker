@@ -10,39 +10,25 @@
             <div class="form-header">
                 <h1>📖 {{ 'Ders Düzenle' if course else 'Yeni Ders Ekle' }}</h1>
             </div>
-            
+
             <!-- Form -->
             <form method="POST" class="admin-form">
                 <div class="form-row">
                     <!-- Ders Kodu -->
                     <div class="form-group">
                         <label for="code" class="form-label">Ders Kodu *</label>
-                        <input 
-                            type="text" 
-                            id="code" 
-                            name="code" 
-                            class="form-control"
-                            value="{{ course.code if course else '' }}"
-                            placeholder="Örn: BM101"
-                            required
-                        >
+                        <input type="text" id="code" name="code" class="form-control"
+                            value="{{ course.code if course else '' }}" placeholder="Örn: BM101" required>
                     </div>
-                    
+
                     <!-- Ders Adı -->
                     <div class="form-group">
                         <label for="name" class="form-label">Ders Adı *</label>
-                        <input 
-                            type="text" 
-                            id="name" 
-                            name="name" 
-                            class="form-control"
-                            value="{{ course.name if course else '' }}"
-                            placeholder="Örn: Programlamaya Giriş"
-                            required
-                        >
+                        <input type="text" id="name" name="name" class="form-control"
+                            value="{{ course.name if course else '' }}" placeholder="Örn: Programlamaya Giriş" required>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <!-- Bölüm Seçimi -->
                     <div class="form-group">
@@ -50,91 +36,130 @@
                         <select id="department_id" name="department_id" class="form-control" required>
                             <option value="">-- Bölüm Seçin --</option>
                             {% for dept in departments %}
-                                <option value="{{ dept.id }}" 
-                                    {{ 'selected' if course and course.department_id == dept.id else '' }}>
-                                    {{ dept.name }}
-                                </option>
+                            <option value="{{ dept.id }}" {{ 'selected' if course and course.department_id==dept.id
+                                else '' }}>
+                                {{ dept.name }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <!-- Öğretim Üyesi Seçimi -->
                     <div class="form-group">
                         <label for="instructor_id" class="form-label">Öğretim Üyesi *</label>
                         <select id="instructor_id" name="instructor_id" class="form-control" required>
                             <option value="">-- Öğretim Üyesi Seçin --</option>
                             {% for inst in instructors %}
-                                <option value="{{ inst.id }}" 
-                                    {{ 'selected' if course and course.instructor_id == inst.id else '' }}>
-                                    {{ inst.title }} {{ inst.name }}
-                                </option>
+                            <option value="{{ inst.id }}" {{ 'selected' if course and course.instructor_id==inst.id
+                                else '' }}>
+                                {{ inst.title }} {{ inst.name }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <!-- Öğrenci Sayısı -->
                     <div class="form-group">
                         <label for="student_count" class="form-label">Öğrenci Sayısı</label>
-                        <input 
-                            type="number" 
-                            id="student_count" 
-                            name="student_count" 
-                            class="form-control"
-                            value="{{ course.student_count if course else '0' }}"
-                            min="0"
-                        >
+                        <input type="number" id="student_count" name="student_count" class="form-control"
+                            value="{{ course.student_count if course else '0' }}" min="0">
                     </div>
-                    
+
                     <!-- Sınav Süresi -->
                     <div class="form-group">
                         <label for="exam_duration" class="form-label">Sınav Süresi (dakika)</label>
                         <select id="exam_duration" name="exam_duration" class="form-control">
-                            <option value="30" {{ 'selected' if course and course.exam_duration == 30 else '' }}>30 dakika</option>
-                            <option value="45" {{ 'selected' if course and course.exam_duration == 45 else '' }}>45 dakika</option>
-                            <option value="60" {{ 'selected' if course and course.exam_duration == 60 else '' }}>60 dakika</option>
-                            <option value="90" {{ 'selected' if course and course.exam_duration == 90 else '' }}>90 dakika</option>
-                            <option value="120" {{ 'selected' if course and course.exam_duration == 120 else '' }}>120 dakika</option>
+                            <option value="30" {{ 'selected' if course and course.exam_duration==30 else '' }}>30 dakika
+                            </option>
+                            <option value="45" {{ 'selected' if course and course.exam_duration==45 else '' }}>45 dakika
+                            </option>
+                            <option value="60" {{ 'selected' if course and course.exam_duration==60 else '' }}>60 dakika
+                            </option>
+                            <option value="90" {{ 'selected' if course and course.exam_duration==90 else '' }}>90 dakika
+                            </option>
+                            <option value="120" {{ 'selected' if course and course.exam_duration==120 else '' }}>120
+                                dakika</option>
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <!-- Sınav Türü -->
                     <div class="form-group">
                         <label for="exam_type" class="form-label">Sınav Türü</label>
                         <select id="exam_type" name="exam_type" class="form-control">
-                            <option value="Yazılı" {{ 'selected' if course and course.exam_type == 'Yazılı' else '' }}>Yazılı</option>
-                            <option value="Test" {{ 'selected' if course and course.exam_type == 'Test' else '' }}>Test</option>
-                            <option value="Uygulama" {{ 'selected' if course and course.exam_type == 'Uygulama' else '' }}>Uygulama</option>
-                            <option value="Sözlü" {{ 'selected' if course and course.exam_type == 'Sözlü' else '' }}>Sözlü</option>
-                            <option value="Proje" {{ 'selected' if course and course.exam_type == 'Proje' else '' }}>Proje</option>
+                            <option value="Yazılı" {{ 'selected' if course and course.exam_type=='Yazılı' else '' }}>
+                                Yazılı</option>
+                            <option value="Test" {{ 'selected' if course and course.exam_type=='Test' else '' }}>Test
+                            </option>
+                            <option value="Uygulama" {{ 'selected' if course and course.exam_type=='Uygulama' else ''
+                                }}>Uygulama</option>
+                            <option value="Sözlü" {{ 'selected' if course and course.exam_type=='Sözlü' else '' }}>Sözlü
+                            </option>
+                            <option value="Proje" {{ 'selected' if course and course.exam_type=='Proje' else '' }}>Proje
+                            </option>
                         </select>
                     </div>
                 </div>
-                
+
+                <!-- Ders Saatleri (Hocanın Müsaitliği İçin) -->
+                <div class="form-section">
+                    <h3 class="form-section-title">📅 Ders Programı</h3>
+                    <p class="form-section-desc">Hocanın bu dersi verdiği gün ve saat. Sınav planlamasında bu saatler
+                        müsait olmayan olarak işaretlenir.</p>
+
+                    <div class="form-row">
+                        <!-- Ders Günü -->
+                        <div class="form-group">
+                            <label for="day_of_week" class="form-label">Ders Günü</label>
+                            <select id="day_of_week" name="day_of_week" class="form-control">
+                                <option value="">-- Seçin (Opsiyonel) --</option>
+                                <option value="Pazartesi" {{ 'selected' if course and course.day_of_week=='Pazartesi'
+                                    else '' }}>Pazartesi</option>
+                                <option value="Salı" {{ 'selected' if course and course.day_of_week=='Salı' else '' }}>
+                                    Salı</option>
+                                <option value="Çarşamba" {{ 'selected' if course and course.day_of_week=='Çarşamba'
+                                    else '' }}>Çarşamba</option>
+                                <option value="Perşembe" {{ 'selected' if course and course.day_of_week=='Perşembe'
+                                    else '' }}>Perşembe</option>
+                                <option value="Cuma" {{ 'selected' if course and course.day_of_week=='Cuma' else '' }}>
+                                    Cuma</option>
+                            </select>
+                        </div>
+
+                        <!-- Ders Başlangıç Saati -->
+                        <div class="form-group">
+                            <label for="class_start_time" class="form-label">Başlangıç Saati</label>
+                            <input type="time" id="class_start_time" name="class_start_time" class="form-control"
+                                value="{{ course.class_start_time if course and course.class_start_time else '' }}">
+                        </div>
+
+                        <!-- Ders Bitiş Saati -->
+                        <div class="form-group">
+                            <label for="class_end_time" class="form-label">Bitiş Saati</label>
+                            <input type="time" id="class_end_time" name="class_end_time" class="form-control"
+                                value="{{ course.class_end_time if course and course.class_end_time else '' }}">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Checkbox'lar -->
                 <div class="form-group checkbox-group">
                     <label class="checkbox-label">
-                        <input 
-                            type="checkbox" 
-                            name="needs_computer" 
-                            {{ 'checked' if course and course.needs_computer else '' }}
-                        >
+                        <input type="checkbox" name="needs_computer" {{ 'checked' if course and course.needs_computer
+                            else '' }}>
                         <span>💻 Bilgisayar gerekli (Lab sınavı)</span>
                     </label>
-                    
+
                     <label class="checkbox-label">
-                        <input 
-                            type="checkbox" 
-                            name="has_exam" 
-                            {{ 'checked' if (course and course.has_exam) or not course else '' }}
-                        >
+                        <input type="checkbox" name="has_exam" {{ 'checked' if (course and course.has_exam) or not
+                            course else '' }}>
                         <span>📝 Bu dersin sınavı var</span>
                     </label>
                 </div>
-                
+
                 <!-- Butonlar -->
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">
@@ -149,4 +174,3 @@
     </div>
 </section>
 {% endblock %}
-

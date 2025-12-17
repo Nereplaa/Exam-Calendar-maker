@@ -120,7 +120,8 @@ def get_courses_by_instructor(instructor_id):
 
 
 def create_course(code, name, department_id, instructor_id, student_count, 
-                  exam_duration, exam_type, needs_computer, has_exam):
+                  exam_duration, exam_type, needs_computer, has_exam,
+                  day_of_week=None, class_start_time=None, class_end_time=None):
     """
     Yeni ders oluşturur.
     
@@ -134,6 +135,9 @@ def create_course(code, name, department_id, instructor_id, student_count,
         exam_type: Sınav türü (Yazılı, Test, vb.)
         needs_computer: Bilgisayar gerekli mi?
         has_exam: Sınavı var mı?
+        day_of_week: Dersin günü (Pazartesi, Salı, vb.)
+        class_start_time: Ders başlangıç saati
+        class_end_time: Ders bitiş saati
     
     Döndürür:
         course_id: Oluşturulan dersin ID'si veya None
@@ -149,11 +153,13 @@ def create_course(code, name, department_id, instructor_id, student_count,
     query = """
         INSERT INTO courses (code, name, department_id, instructor_id, 
                             student_count, exam_duration, exam_type, 
-                            needs_computer, has_exam) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            needs_computer, has_exam, day_of_week,
+                            class_start_time, class_end_time) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     params = (code, name, department_id, instructor_id, student_count,
-              exam_duration, exam_type, needs_computer, has_exam)
+              exam_duration, exam_type, needs_computer, has_exam,
+              day_of_week, class_start_time, class_end_time)
     
     new_id = execute_insert(query, params)
     
@@ -161,7 +167,8 @@ def create_course(code, name, department_id, instructor_id, student_count,
 
 
 def update_course(course_id, code, name, department_id, instructor_id, 
-                  student_count, exam_duration, exam_type, needs_computer, has_exam):
+                  student_count, exam_duration, exam_type, needs_computer, has_exam,
+                  day_of_week=None, class_start_time=None, class_end_time=None):
     """
     Ders bilgilerini günceller.
     
@@ -173,12 +180,14 @@ def update_course(course_id, code, name, department_id, instructor_id,
         UPDATE courses 
         SET code = ?, name = ?, department_id = ?, instructor_id = ?,
             student_count = ?, exam_duration = ?, exam_type = ?,
-            needs_computer = ?, has_exam = ?
+            needs_computer = ?, has_exam = ?, day_of_week = ?,
+            class_start_time = ?, class_end_time = ?
         WHERE id = ?
     """
     
     params = (code, name, department_id, instructor_id, student_count,
-              exam_duration, exam_type, needs_computer, has_exam, course_id)
+              exam_duration, exam_type, needs_computer, has_exam,
+              day_of_week, class_start_time, class_end_time, course_id)
     
     # Sorguyu çalıştır
     affected_rows = execute_update(query, params)

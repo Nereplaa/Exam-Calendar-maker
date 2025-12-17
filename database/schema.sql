@@ -103,6 +103,9 @@ CREATE TABLE IF NOT EXISTS courses (
     exam_type TEXT DEFAULT 'Yazılı',        -- Sınav türü (Yazılı, Test, vb.)
     needs_computer INTEGER DEFAULT 0,       -- Bilgisayarlı derslik gerekli mi?
     has_exam INTEGER DEFAULT 1,             -- Bu dersin sınavı var mı? (1=Var, 0=Yok)
+    day_of_week TEXT,                       -- Dersin günü (Pazartesi, Salı, vb.)
+    class_start_time TEXT,                  -- Ders başlangıç saati (09:00)
+    class_end_time TEXT,                    -- Ders bitiş saati (10:30)
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id),
     FOREIGN KEY (instructor_id) REFERENCES instructors(id)

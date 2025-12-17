@@ -144,6 +144,7 @@ def delete_all_availability_by_instructor(instructor_id):
 def check_instructor_available(instructor_id, day_of_week, start_time, end_time):
     """
     Öğretim üyesinin belirtilen gün ve saatte müsait olup olmadığını kontrol eder.
+    Dersi varsa müsait değil, yoksa müsait.
     
     Parametreler:
         instructor_id: Öğretim üyesi ID
@@ -154,27 +155,26 @@ def check_instructor_available(instructor_id, day_of_week, start_time, end_time)
     Döndürür:
         is_available: Müsait mi? (True/False)
     """
-    # Önce bu hoca için herhangi bir müsaitlik kaydı var mı kontrol et
-    check_query = "SELECT COUNT(*) as count FROM instructor_availability WHERE instructor_id = ?"
-    check_result = execute_query(check_query, (instructor_id,))
-    
-    # Eğer hiç müsaitlik kaydı yoksa, tüm günlerde müsait kabul et
-    if check_result[0]['count'] == 0:
-        return True
-    
-    # SQL sorgusu - o gün müsait mi? (sadece gün kontrolü yeterli)
+    # O gün ve saatte dersi var mı kontrol et
+    # Çakışma: ders_baş < sınav_bit AND ders_bit > sınav_baş
     query = """
-        SELECT * FROM instructor_availability 
+        SELECT id FROM courses 
         WHERE instructor_id = ? 
-          AND day_of_week = ? 
-          AND is_available = 1
+          AND day_of_week = ?
+          AND class_start_time IS NOT NULL
+          AND class_end_time IS NOT NULL
+          AND class_start_time < ?
+          AND class_end_time > ?
     """
     
-    # Sorguyu çalıştır (saat parametreleri artık kullanılmıyor)
-    results = execute_query(query, (instructor_id, day_of_week))
+    results = execute_query(query, (instructor_id, day_of_week, end_time, start_time))
     
-    # Sonuç varsa müsait
-    return len(results) > 0
+    # Ders varsa müsait değil
+    if len(results) > 0:
+        return False
+    
+    # Ders yoksa müsait
+    return True
 
 
 def get_all_availability_with_instructor():
@@ -201,6 +201,40 @@ def get_all_availability_with_instructor():
     """
     
     # Sorguyu çalıştır
+    results = execute_query(query)
+    
+    return results
+
+
+def get_instructor_class_schedules():
+    """
+    Tüm öğretmenlerin ders programlarını getirir.
+    Dersi varken meşgul, yoksa müsait.
+    
+    Döndürür:
+        schedules: Ders programları listesi
+    """
+    query = """
+        SELECT c.instructor_id, c.day_of_week, c.class_start_time, c.class_end_time,
+               c.code as course_code, c.name as course_name,
+               i.name as instructor_name, i.title as instructor_title,
+               i.department_id
+        FROM courses c
+        LEFT JOIN instructors i ON c.instructor_id = i.id
+        WHERE c.day_of_week IS NOT NULL 
+          AND c.class_start_time IS NOT NULL
+          AND c.class_end_time IS NOT NULL
+        ORDER BY i.name, 
+            CASE c.day_of_week
+                WHEN 'Pazartesi' THEN 1
+                WHEN 'Salı' THEN 2
+                WHEN 'Çarşamba' THEN 3
+                WHEN 'Perşembe' THEN 4
+                WHEN 'Cuma' THEN 5
+            END,
+            c.class_start_time
+    """
+    
     results = execute_query(query)
     
     return results
