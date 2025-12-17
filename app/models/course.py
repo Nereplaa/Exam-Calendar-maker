@@ -75,10 +75,14 @@ def get_courses_by_department(department_id):
     Döndürür:
         courses: Ders listesi
     """
-    # SQL sorgusu
+    # SQL sorgusu - department_name eklendi
     query = """
-        SELECT c.*, i.name as instructor_name, i.title as instructor_title
+        SELECT c.*, 
+               d.name as department_name,
+               i.name as instructor_name, 
+               i.title as instructor_title
         FROM courses c
+        LEFT JOIN departments d ON c.department_id = d.id
         LEFT JOIN instructors i ON c.instructor_id = i.id
         WHERE c.department_id = ? 
         ORDER BY c.code

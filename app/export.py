@@ -60,6 +60,46 @@ def export_to_pdf():
     export_folder = get_export_folder()
     file_path = os.path.join(export_folder, filename)
     
+    # Türkçe karakter desteği için font kaydet
+    # Windows'ta Arial veya başka TTF font kullan
+    font_registered = False
+    font_name = 'Helvetica'  # Varsayılan
+    font_name_bold = 'Helvetica-Bold'
+    
+    # DejaVuSans fontunu dene (eğer varsa)
+    try:
+        # Proje klasöründe fonts klasörü oluştur ve oradan oku
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        font_path = os.path.join(base_dir, 'fonts', 'DejaVuSans.ttf')
+        font_path_bold = os.path.join(base_dir, 'fonts', 'DejaVuSans-Bold.ttf')
+        
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont('DejaVuSans', font_path))
+            if os.path.exists(font_path_bold):
+                pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', font_path_bold))
+                font_name_bold = 'DejaVuSans-Bold'
+            font_name = 'DejaVuSans'
+            font_registered = True
+    except:
+        pass
+    
+    # Windows Arial fontunu dene
+    if not font_registered:
+        try:
+            # Windows Arial font yolu
+            arial_path = 'C:/Windows/Fonts/arial.ttf'
+            arial_bold_path = 'C:/Windows/Fonts/arialbd.ttf'
+            
+            if os.path.exists(arial_path):
+                pdfmetrics.registerFont(TTFont('Arial', arial_path))
+                if os.path.exists(arial_bold_path):
+                    pdfmetrics.registerFont(TTFont('Arial-Bold', arial_bold_path))
+                    font_name_bold = 'Arial-Bold'
+                font_name = 'Arial'
+                font_registered = True
+        except:
+            pass
+    
     # PDF belgesi oluştur (yatay A4)
     doc = SimpleDocTemplate(
         file_path,
@@ -77,6 +117,7 @@ def export_to_pdf():
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
+        fontName=font_name_bold if font_registered else 'Helvetica-Bold',
         fontSize=18,
         alignment=1,  # Ortalı
         spaceAfter=20
@@ -86,6 +127,7 @@ def export_to_pdf():
     subtitle_style = ParagraphStyle(
         'CustomSubtitle',
         parent=styles['Normal'],
+        fontName=font_name if font_registered else 'Helvetica',
         fontSize=10,
         alignment=1,
         spaceAfter=30
@@ -100,30 +142,50 @@ def export_to_pdf():
     
     # Alt başlık (tarih)
     today = datetime.now().strftime('%d.%m.%Y')
-    subtitle = Paragraph("Oluşturulma Tarihi: " + today, subtitle_style)
+    subtitle = Paragraph("Olusturulma Tarihi: " + today, subtitle_style)
     elements.append(subtitle)
     
     # Sınav verisi yoksa
     if len(exams) == 0:
-        no_data = Paragraph("Henüz planlanmış sınav bulunmamaktadır.", styles['Normal'])
+        no_data_style = ParagraphStyle(
+            'NoData',
+            parent=styles['Normal'],
+            fontName=font_name if font_registered else 'Helvetica'
+        )
+        no_data = Paragraph("Henuz planlanmis sinav bulunmamaktadir.", no_data_style)
         elements.append(no_data)
     else:
         # Tablo verilerini hazırla
         table_data = []
         
         # Başlık satırı
-        headers = ['Tarih', 'Saat', 'Ders Kodu', 'Ders Adı', 'Bölüm', 'Öğretim Üyesi', 'Derslik', 'Öğrenci']
+        headers = ['Tarih', 'Saat', 'Ders Kodu', 'Ders Adi', 'Bolum', 'Ogretim Uyesi', 'Derslik', 'Ogrenci']
         table_data.append(headers)
         
         # Veri satırları
         for exam in exams:
+            # Türkçe karakterleri temizle (font yoksa)
+            course_name = exam['course_name']
+            department_name = exam['department_name']
+            instructor_name = exam['instructor_name']
+            
+            if not font_registered:
+                # Türkçe karakterleri ASCII'ye çevir
+                tr_chars = {'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G', 
+                           'ü': 'u', 'Ü': 'U', 'ş': 's', 'Ş': 'S',
+                           'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C'}
+                for tr, en in tr_chars.items():
+                    course_name = course_name.replace(tr, en)
+                    department_name = department_name.replace(tr, en)
+                    instructor_name = instructor_name.replace(tr, en)
+            
             row = [
                 exam['exam_date'],
                 exam['start_time'] + '-' + exam['end_time'],
                 exam['course_code'],
-                exam['course_name'],
-                exam['department_name'],
-                exam['instructor_name'],
+                course_name,
+                department_name,
+                instructor_name,
                 exam['classroom_name'],
                 str(exam['student_count'])
             ]
@@ -137,12 +199,12 @@ def export_to_pdf():
             # Başlık satırı
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), font_name_bold if font_registered else 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             
             # Tüm hücreler
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTNAME', (0, 1), (-1, -1), font_name if font_registered else 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),

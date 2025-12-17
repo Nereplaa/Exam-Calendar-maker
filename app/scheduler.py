@@ -11,6 +11,7 @@
 #    - Derslik müsait mi?
 #    - Hoca müsait mi?
 #    - Kapasite yeterli mi?
+#    - Öğrenci çakışması var mı? (aynı öğrenci aynı saatte iki sınavda olamaz)
 # 4. Uygunsa yerleştir, değilse sonraki slotu dene
 # ==============================================
 
@@ -137,6 +138,78 @@ def generate_time_slots():
     return slots
 
 
+def calculate_end_time(start_time, duration_minutes):
+    """
+    Başlangıç saatine göre bitiş saatini hesaplar.
+    
+    Parametreler:
+        start_time: Başlangıç saati (HH:MM formatında)
+        duration_minutes: Sınav süresi (dakika)
+    
+    Döndürür:
+        end_time: Bitiş saati (HH:MM formatında)
+    """
+    from datetime import datetime, timedelta
+    
+    # Başlangıç saatini parse et
+    start = datetime.strptime(start_time, '%H:%M')
+    
+    # Süreyi ekle
+    end = start + timedelta(minutes=duration_minutes)
+    
+    # String olarak döndür
+    end_time = end.strftime('%H:%M')
+    
+    return end_time
+
+
+def check_student_conflict(course_id, exam_date, start_time, end_time):
+    """
+    Öğrenci çakışması olup olmadığını kontrol eder.
+    
+    Bu dersi alan öğrencilerin, aynı gün ve saatte
+    başka bir sınavı var mı kontrol eder.
+    
+    Parametreler:
+        course_id: Kontrol edilecek ders ID'si
+        exam_date: Sınav tarihi (YYYY-MM-DD)
+        start_time: Başlangıç saati (HH:MM)
+        end_time: Bitiş saati (HH:MM)
+    
+    Döndürür:
+        has_conflict: Çakışma var mı? (True/False)
+    """
+    # Bu dersi alan öğrencilerin aynı saatte başka sınavı var mı?
+    # student_courses tablosu üzerinden kontrol yapılır
+    query = """
+        SELECT COUNT(*) as count
+        FROM student_courses sc1
+        INNER JOIN student_courses sc2 ON sc1.student_id = sc2.student_id
+        INNER JOIN exam_schedule e ON sc2.course_id = e.course_id
+        WHERE sc1.course_id = ?
+          AND sc2.course_id != ?
+          AND e.exam_date = ?
+          AND (
+              (e.start_time <= ? AND e.end_time > ?)
+              OR (e.start_time < ? AND e.end_time >= ?)
+              OR (e.start_time >= ? AND e.end_time <= ?)
+          )
+    """
+    
+    params = (course_id, course_id, exam_date,
+              start_time, start_time,
+              end_time, end_time,
+              start_time, end_time)
+    
+    results = execute_query(query, params)
+    
+    # Sonuç 0'dan büyükse çakışma var
+    if results[0]['count'] > 0:
+        return True
+    
+    return False
+
+
 def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_slots):
     """
     Bir dersin sınavını yerleştirir.
@@ -156,6 +229,7 @@ def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_s
     student_count = course['student_count']
     needs_computer = course['needs_computer']
     instructor_id = course['instructor_id']
+    exam_duration = course['exam_duration'] if course['exam_duration'] else 60  # Varsayılan 60 dakika
     
     # Hangi derslikleri kullanacağız?
     if needs_computer:
@@ -184,25 +258,39 @@ def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_s
             continue
         
         # Her saat dilimi için dene
-        for start_time, end_time in time_slots:
+        for start_time, slot_end_time in time_slots:
+            
+            # Sınav süresine göre bitiş saatini hesapla
+            actual_end_time = calculate_end_time(start_time, exam_duration)
+            
+            # Bitiş saati 18:00'ı geçiyorsa bu slotu atla
+            if actual_end_time > '18:00':
+                continue
             
             # Hoca bu saatte başka sınavda mı?
-            instructor_busy = check_instructor_conflict(instructor_id, exam_date, start_time, end_time)
+            instructor_busy = check_instructor_conflict(instructor_id, exam_date, start_time, actual_end_time)
             
             if instructor_busy:
+                continue
+            
+            # Öğrenci çakışması var mı?
+            # (Aynı dersi alan öğrencilerin başka sınavı var mı?)
+            student_conflict = check_student_conflict(course_id, exam_date, start_time, actual_end_time)
+            
+            if student_conflict:
                 continue
             
             # Uygun derslikleri dene
             for room in suitable_rooms:
                 
                 # Bu derslik bu saatte müsait mi?
-                room_busy = check_classroom_conflict(room['id'], exam_date, start_time, end_time)
+                room_busy = check_classroom_conflict(room['id'], exam_date, start_time, actual_end_time)
                 
                 if room_busy:
                     continue
                 
                 # Her şey uygun! Sınavı yerleştir
-                create_exam(course_id, room['id'], exam_date, start_time, end_time)
+                create_exam(course_id, room['id'], exam_date, start_time, actual_end_time)
                 
                 return True
     

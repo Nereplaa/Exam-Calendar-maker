@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Kullanıcı Rol Düzenle - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>👤 Kullanıcı Rol Düzenle</h1>
+        </div>
+        
+        <!-- Form -->
+        <div class="card">
+            <form method="POST" class="form">
+                <!-- Kullanıcı Bilgileri (Salt Okunur) -->
+                <div class="form-group">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" value="{{ user.username }}" class="form-control" disabled>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ad Soyad</label>
+                    <input type="text" value="{{ user.full_name }}" class="form-control" disabled>
+                </div>
+                
+                <div class="form-group">
+                    <label>E-posta</label>
+                    <input type="text" value="{{ user.email }}" class="form-control" disabled>
+                </div>
+                
+                <hr style="margin: 20px 0; border-color: var(--glass-border);">
+                
+                <!-- Düzenlenebilir Alanlar -->
+                <div class="form-group">
+                    <label for="role">Rol <span class="required">*</span></label>
+                    <select id="role" name="role" class="form-control" required>
+                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>
+                            👑 Admin - Tüm sistemi yönetir
+                        </option>
+                        <option value="bolum_yetkili" {% if user.role == 'bolum_yetkili' %}selected{% endif %}>
+                            🏛️ Bölüm Yetkilisi - Kendi bölümünü yönetir
+                        </option>
+                        <option value="hoca" {% if user.role == 'hoca' %}selected{% endif %}>
+                            👨‍🏫 Hoca - Sadece görüntüleme
+                        </option>
+                        <option value="ogrenci" {% if user.role == 'ogrenci' %}selected{% endif %}>
+                            🎓 Öğrenci - Sadece görüntüleme
+                        </option>
+                    </select>
+                    <small class="form-text">
+                        <strong>Admin:</strong> Tüm sistemi yönetir, planlama yapar<br>
+                        <strong>Bölüm Yetkilisi:</strong> Kendi bölümünün ders ve hocalarını yönetir<br>
+                        <strong>Hoca/Öğrenci:</strong> Sadece sınav programını görüntüler
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="department_id">Bölüm</label>
+                    <select id="department_id" name="department_id" class="form-control">
+                        <option value="">-- Bölüm seçin (opsiyonel) --</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if user.department_id == dept.id %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text">
+                        Bölüm Yetkilisi için bölüm seçimi zorunludur.
+                    </small>
+                </div>
+                
+                <!-- Butonlar -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">💾 Kaydet</button>
+                    <a href="{{ url_for('admin.users_list') }}" class="btn btn-secondary">İptal</a>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('admin.users_list') }}">← Kullanıcı Listesine Dön</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

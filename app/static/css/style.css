@@ -10,35 +10,48 @@
    ============================================== */
 :root {
     /* Ana renkler */
-    --primary-color: #2563eb;       /* Mavi - ana renk */
-    --primary-dark: #1d4ed8;        /* Koyu mavi */
-    --secondary-color: #64748b;     /* Gri - ikincil renk */
-    --success-color: #22c55e;       /* Yeşil - başarı */
-    --warning-color: #f59e0b;       /* Turuncu - uyarı */
-    --danger-color: #ef4444;        /* Kırmızı - hata */
-    
+    --primary-color: #2563eb;
+    /* Mavi - ana renk */
+    --primary-dark: #1d4ed8;
+    /* Koyu mavi */
+    --secondary-color: #64748b;
+    /* Gri - ikincil renk */
+    --success-color: #22c55e;
+    /* Yeşil - başarı */
+    --warning-color: #f59e0b;
+    /* Turuncu - uyarı */
+    --danger-color: #ef4444;
+    /* Kırmızı - hata */
+
     /* Arka plan renkleri */
-    --bg-color: #f8fafc;            /* Açık gri arka plan */
-    --card-bg: #ffffff;             /* Kart arka planı */
-    --dark-bg: #1e293b;             /* Koyu arka plan */
-    
+    --bg-color: #f8fafc;
+    /* Açık gri arka plan */
+    --card-bg: #ffffff;
+    /* Kart arka planı */
+    --dark-bg: #1e293b;
+    /* Koyu arka plan */
+
     /* Yazı renkleri */
-    --text-color: #334155;          /* Ana yazı rengi */
-    --text-light: #64748b;          /* Açık yazı rengi */
-    --text-white: #ffffff;          /* Beyaz yazı */
-    
+    --text-color: #334155;
+    /* Ana yazı rengi */
+    --text-light: #64748b;
+    /* Açık yazı rengi */
+    --text-white: #ffffff;
+    /* Beyaz yazı */
+
     /* Kenarlık ve gölge */
-    --border-color: #e2e8f0;        /* Kenarlık rengi */
+    --border-color: #e2e8f0;
+    /* Kenarlık rengi */
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    
+
     /* Boşluklar */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
-    
+
     /* Border radius */
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
@@ -628,6 +641,100 @@ body {
     color: rgba(255, 255, 255, 0.8);
 }
 
+/* Actions Layout - Sol/Sağ Bölümleri */
+.actions-layout {
+    display: flex;
+    gap: var(--spacing-xl);
+    align-items: stretch;
+}
+
+.actions-left {
+    flex: 1;
+}
+
+.actions-right {
+    width: 200px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+}
+
+/* Büyük Aksiyon Kartı (Sınav Planla) */
+.action-card-large {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--text-color);
+    transition: all 0.3s;
+    border: 2px solid transparent;
+    width: 100%;
+    min-height: 250px;
+}
+
+.action-card-large.action-primary {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: var(--text-white);
+    box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+}
+
+.action-card-large:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
+}
+
+.action-icon-large {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.action-card-large h3 {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.action-card-large p {
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.action-arrow {
+    font-size: 2rem;
+    margin-top: var(--spacing-md);
+    opacity: 0.8;
+}
+
+/* Responsive - Actions Layout */
+@media (max-width: 1024px) {
+    .actions-layout {
+        flex-direction: column;
+    }
+
+    .actions-right {
+        width: 100%;
+    }
+
+    .action-card-large {
+        min-height: 150px;
+        flex-direction: row;
+        gap: var(--spacing-lg);
+    }
+
+    .action-icon-large {
+        font-size: 3rem;
+        margin-bottom: 0;
+    }
+
+    .action-arrow {
+        display: none;
+    }
+}
+
 /* ==============================================
    RESPONSİF TASARIM (Mobil uyumluluk)
    ============================================== */
@@ -635,34 +742,34 @@ body {
     .hero h1 {
         font-size: 2rem;
     }
-    
+
     .hero-buttons {
         flex-direction: column;
     }
-    
+
     .navbar-container {
         flex-direction: column;
         gap: var(--spacing-md);
     }
-    
+
     .navbar-menu {
         flex-wrap: wrap;
         justify-content: center;
     }
-    
+
     .steps {
         flex-direction: column;
         align-items: center;
     }
-    
+
     .auth-card {
         margin: 0 var(--spacing-md);
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .actions-grid {
         grid-template-columns: 1fr;
     }
@@ -772,11 +879,20 @@ body {
 /* Tablo İşlem Butonları */
 .actions {
     white-space: nowrap;
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .btn-sm {
     padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 90px;
+    text-align: center;
 }
 
 .btn-edit {
@@ -792,6 +908,7 @@ body {
 .btn-edit:hover,
 .btn-delete:hover {
     opacity: 0.9;
+    transform: translateY(-1px);
 }
 
 /* Geri Link */
@@ -822,15 +939,15 @@ body {
         gap: var(--spacing-md);
         text-align: center;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .table {
         font-size: 0.875rem;
     }
-    
+
     .table th,
     .table td {
         padding: var(--spacing-sm);
@@ -885,11 +1002,63 @@ body {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     font-size: 1rem;
+    background-color: var(--dark-bg);
+    color: var(--text-white);
+}
+
+.schedule-table {
+    width: 100%;
+    table-layout: auto;
 }
 
 .schedule-table th,
 .schedule-table td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+.schedule-table th {
     white-space: nowrap;
+    font-weight: 600;
+}
+
+.schedule-table td {
+    white-space: normal;
+}
+
+/* Sütun genişlikleri */
+.schedule-table th:nth-child(1),
+.schedule-table td:nth-child(1) {
+    width: 100px;
+    /* Tarih */
+}
+
+.schedule-table th:nth-child(2),
+.schedule-table td:nth-child(2) {
+    width: 100px;
+    /* Saat */
+    white-space: nowrap;
+}
+
+.schedule-table th:nth-child(3),
+.schedule-table td:nth-child(3) {
+    width: 80px;
+    /* Ders Kodu */
+}
+
+.schedule-table th:nth-child(8),
+.schedule-table td:nth-child(8) {
+    width: 60px;
+    /* Öğrenci */
+    text-align: center;
+}
+
+.schedule-table th:last-child,
+.schedule-table td:last-child {
+    width: 60px;
+    /* İşlem */
+    text-align: center;
 }
 
 .empty-state {
@@ -983,4 +1152,3 @@ body {
 .btn-excel:hover {
     background-color: #16a34a;
 }
-

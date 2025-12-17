@@ -184,9 +184,10 @@ def get_all_availability_with_instructor():
     Döndürür:
         availability_list: Müsaitlik listesi
     """
-    # SQL sorgusu
+    # SQL sorgusu - department_id eklendi
     query = """
-        SELECT a.*, i.name as instructor_name, i.title as instructor_title
+        SELECT a.*, i.name as instructor_name, i.title as instructor_title,
+               i.department_id as department_id
         FROM instructor_availability a
         LEFT JOIN instructors i ON a.instructor_id = i.id
         ORDER BY i.name, 

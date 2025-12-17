@@ -18,11 +18,13 @@ from app.models.department import (
 )
 from app.models.instructor import (
     get_all_instructors, get_instructor_by_id,
-    create_instructor, update_instructor, delete_instructor
+    create_instructor, update_instructor, delete_instructor,
+    get_instructors_by_department
 )
 from app.models.course import (
     get_all_courses, get_course_by_id,
-    create_course, update_course, delete_course
+    create_course, update_course, delete_course,
+    get_courses_by_department
 )
 from app.models.classroom import (
     get_all_classrooms, get_classroom_by_id,
@@ -37,6 +39,19 @@ from app.models.user import get_all_users, get_user_by_id, delete_user, update_u
 
 # Blueprint oluştur
 bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+def check_logged_in():
+    """
+    Kullanıcının giriş yapıp yapmadığını kontrol eder.
+    
+    Döndürür:
+        is_logged_in: Giriş yapmış mı? (True/False)
+    """
+    # Giriş yapmış mı?
+    if not session.get('user_id'):
+        return False
+    return True
 
 
 def check_admin():
@@ -55,6 +70,50 @@ def check_admin():
         return False
     
     return True
+
+
+def check_admin_or_department_manager():
+    """
+    Kullanıcının admin veya bölüm yetkilisi olup olmadığını kontrol eder.
+    
+    Döndürür:
+        has_access: Admin veya bölüm yetkilisi mi? (True/False)
+    """
+    # Giriş yapmış mı?
+    if not session.get('user_id'):
+        return False
+    
+    # Rolü kontrol et
+    role = session.get('role')
+    
+    # Admin veya bölüm yetkilisi mi?
+    if role == 'admin' or role == 'bolum_yetkili':
+        return True
+    
+    return False
+
+
+def get_user_department_id():
+    """
+    Giriş yapan kullanıcının bölüm ID'sini döndürür.
+    
+    Döndürür:
+        department_id: Bölüm ID veya None
+    """
+    # Kullanıcı bilgisini al
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return None
+    
+    # Kullanıcıyı getir
+    user = get_user_by_id(user_id)
+    
+    if not user:
+        return None
+    
+    # sqlite3.Row objesi dictionary key access kullanır
+    return user['department_id'] if 'department_id' in user.keys() else None
 
 
 # ==============================================
@@ -267,22 +326,48 @@ def department_delete(department_id):
 @bp.route('/instructors')
 def instructors_list():
     """Öğretim üyesi listesi sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    instructors = get_all_instructors()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    
+    # Admin ise tüm öğretim üyelerini göster
+    if role == 'admin':
+        instructors = get_all_instructors()
+    else:
+        # Bölüm yetkilisi ise sadece kendi bölümündekileri göster
+        user_dept_id = get_user_department_id()
+        if user_dept_id:
+            instructors = get_instructors_by_department(user_dept_id)
+        else:
+            instructors = []
+    
     return render_template('admin/instructors.html', instructors=instructors)
 
 
 @bp.route('/instructors/add', methods=['GET', 'POST'])
 def instructor_add():
     """Yeni öğretim üyesi ekleme sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    departments = get_all_departments()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
+    # Admin ise tüm bölümleri göster, değilse sadece kendi bölümünü
+    if role == 'admin':
+        departments = get_all_departments()
+    else:
+        # Bölüm yetkilisi sadece kendi bölümünü görür
+        from app.models.department import get_department_by_id
+        dept = get_department_by_id(user_dept_id)
+        departments = [dept] if dept else []
     
     if request.method == 'POST':
         name = request.form.get('name')
@@ -290,6 +375,12 @@ def instructor_add():
         email = request.form.get('email')
         phone = request.form.get('phone')
         department_id = request.form.get('department_id')
+        
+        # Bölüm yetkilisi sadece kendi bölümüne ekleyebilir
+        if role != 'admin' and int(department_id) != user_dept_id:
+            flash('Sadece kendi bölümünüze öğretim üyesi ekleyebilirsiniz!', 'error')
+            return render_template('admin/instructor_form.html', 
+                                   instructor=None, departments=departments)
         
         if not name or not department_id:
             flash('Ad ve bölüm alanları zorunludur!', 'error')
@@ -311,16 +402,33 @@ def instructor_add():
 @bp.route('/instructors/edit/<int:instructor_id>', methods=['GET', 'POST'])
 def instructor_edit(instructor_id):
     """Öğretim üyesi düzenleme sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
     instructor = get_instructor_by_id(instructor_id)
-    departments = get_all_departments()
     
     if not instructor:
         flash('Öğretim üyesi bulunamadı!', 'error')
         return redirect(url_for('admin.instructors_list'))
+    
+    # Bölüm yetkilisi sadece kendi bölümündeki hocaları düzenleyebilir
+    if role != 'admin' and instructor['department_id'] != user_dept_id:
+        flash('Bu öğretim üyesini düzenleme yetkiniz yok!', 'error')
+        return redirect(url_for('admin.instructors_list'))
+    
+    # Admin ise tüm bölümleri göster, değilse sadece kendi bölümünü
+    if role == 'admin':
+        departments = get_all_departments()
+    else:
+        from app.models.department import get_department_by_id
+        dept = get_department_by_id(user_dept_id)
+        departments = [dept] if dept else []
     
     if request.method == 'POST':
         name = request.form.get('name')
@@ -349,9 +457,21 @@ def instructor_edit(instructor_id):
 @bp.route('/instructors/delete/<int:instructor_id>')
 def instructor_delete(instructor_id):
     """Öğretim üyesi silme işlemi."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
+    
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
+    # Bölüm yetkilisi sadece kendi bölümündeki hocaları silebilir
+    if role != 'admin':
+        instructor = get_instructor_by_id(instructor_id)
+        if instructor and instructor['department_id'] != user_dept_id:
+            flash('Bu öğretim üyesini silme yetkiniz yok!', 'error')
+            return redirect(url_for('admin.instructors_list'))
     
     success = delete_instructor(instructor_id)
     
@@ -370,23 +490,50 @@ def instructor_delete(instructor_id):
 @bp.route('/courses')
 def courses_list():
     """Ders listesi sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    courses = get_all_courses()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    
+    # Admin ise tüm dersleri göster
+    if role == 'admin':
+        courses = get_all_courses()
+    else:
+        # Bölüm yetkilisi ise sadece kendi bölümünün derslerini göster
+        user_dept_id = get_user_department_id()
+        if user_dept_id:
+            courses = get_courses_by_department(user_dept_id)
+        else:
+            courses = []
+    
     return render_template('admin/courses.html', courses=courses)
 
 
 @bp.route('/courses/add', methods=['GET', 'POST'])
 def course_add():
     """Yeni ders ekleme sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    departments = get_all_departments()
-    instructors = get_all_instructors()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
+    # Admin ise tüm bölümleri ve hocaları göster
+    if role == 'admin':
+        departments = get_all_departments()
+        instructors = get_all_instructors()
+    else:
+        # Bölüm yetkilisi sadece kendi bölümünü görür
+        from app.models.department import get_department_by_id
+        dept = get_department_by_id(user_dept_id)
+        departments = [dept] if dept else []
+        instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
     if request.method == 'POST':
         code = request.form.get('code')
@@ -398,6 +545,13 @@ def course_add():
         exam_type = request.form.get('exam_type', 'Yazılı')
         needs_computer = 1 if request.form.get('needs_computer') else 0
         has_exam = 1 if request.form.get('has_exam') else 0
+        
+        # Bölüm yetkilisi sadece kendi bölümüne ders ekleyebilir
+        if role != 'admin' and int(department_id) != user_dept_id:
+            flash('Sadece kendi bölümünüze ders ekleyebilirsiniz!', 'error')
+            return render_template('admin/course_form.html', 
+                                   course=None, departments=departments, 
+                                   instructors=instructors)
         
         if not code or not name or not department_id or not instructor_id:
             flash('Zorunlu alanları doldurunuz!', 'error')
@@ -425,17 +579,35 @@ def course_add():
 @bp.route('/courses/edit/<int:course_id>', methods=['GET', 'POST'])
 def course_edit(course_id):
     """Ders düzenleme sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
     course = get_course_by_id(course_id)
-    departments = get_all_departments()
-    instructors = get_all_instructors()
     
     if not course:
         flash('Ders bulunamadı!', 'error')
         return redirect(url_for('admin.courses_list'))
+    
+    # Bölüm yetkilisi sadece kendi bölümündeki dersleri düzenleyebilir
+    if role != 'admin' and course['department_id'] != user_dept_id:
+        flash('Bu dersi düzenleme yetkiniz yok!', 'error')
+        return redirect(url_for('admin.courses_list'))
+    
+    # Admin ise tüm bölümleri ve hocaları göster
+    if role == 'admin':
+        departments = get_all_departments()
+        instructors = get_all_instructors()
+    else:
+        from app.models.department import get_department_by_id
+        dept = get_department_by_id(user_dept_id)
+        departments = [dept] if dept else []
+        instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
     if request.method == 'POST':
         code = request.form.get('code')
@@ -474,9 +646,21 @@ def course_edit(course_id):
 @bp.route('/courses/delete/<int:course_id>')
 def course_delete(course_id):
     """Ders silme işlemi."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
+    
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
+    # Bölüm yetkilisi sadece kendi bölümündeki dersleri silebilir
+    if role != 'admin':
+        course = get_course_by_id(course_id)
+        if course and course['department_id'] != user_dept_id:
+            flash('Bu dersi silme yetkiniz yok!', 'error')
+            return redirect(url_for('admin.courses_list'))
     
     success = delete_course(course_id)
     
@@ -592,22 +776,48 @@ def classroom_delete(classroom_id):
 @bp.route('/availability')
 def availability_list():
     """Müsaitlik listesi sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    availability = get_all_availability_with_instructor()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    
+    # Admin ise tüm müsaitlikleri göster
+    if role == 'admin':
+        availability = get_all_availability_with_instructor()
+    else:
+        # Bölüm yetkilisi ise sadece kendi bölümündeki hocaların müsaitliklerini göster
+        user_dept_id = get_user_department_id()
+        # Tüm müsaitlikleri al ve filtrele
+        all_availability = get_all_availability_with_instructor()
+        availability = []
+        for item in all_availability:
+            if item['department_id'] == user_dept_id:
+                availability.append(item)
+    
     return render_template('admin/availability.html', availability=availability)
 
 
 @bp.route('/availability/add', methods=['GET', 'POST'])
 def availability_add():
     """Yeni müsaitlik ekleme sayfası."""
-    if not check_admin():
+    # Admin veya bölüm yetkilisi mi kontrol et
+    if not check_admin_or_department_manager():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
-    instructors = get_all_instructors()
+    # Kullanıcının rolünü kontrol et
+    role = session.get('role')
+    user_dept_id = get_user_department_id()
+    
+    # Admin ise tüm hocaları göster
+    if role == 'admin':
+        instructors = get_all_instructors()
+    else:
+        # Bölüm yetkilisi sadece kendi bölümündeki hocaları görür
+        instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
     if request.method == 'POST':
         instructor_id = request.form.get('instructor_id')
@@ -707,3 +917,61 @@ def user_activate(user_id):
     
     return redirect(url_for('admin.users_list'))
 
+
+@bp.route('/users/edit/<int:user_id>', methods=['GET', 'POST'])
+def user_edit(user_id):
+    """
+    Kullanıcı rol düzenleme sayfası.
+    Sadece admin erişebilir.
+    """
+    # Admin kontrolü
+    if not check_admin():
+        flash('Bu sayfaya erişim yetkiniz yok!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Kullanıcıyı getir
+    user = get_user_by_id(user_id)
+    
+    if not user:
+        flash('Kullanıcı bulunamadı!', 'error')
+        return redirect(url_for('admin.users_list'))
+    
+    # Bölümleri getir
+    departments = get_all_departments()
+    
+    # Form gönderildi mi?
+    if request.method == 'POST':
+        # Form verilerini al
+        new_role = request.form.get('role')
+        new_department_id = request.form.get('department_id')
+        
+        # Department ID'yi integer'a çevir
+        if new_department_id:
+            new_department_id = int(new_department_id)
+        else:
+            new_department_id = None
+        
+        # Kendini admin'den düşürmeye çalışıyorsa engelle
+        if user_id == session.get('user_id') and new_role != 'admin':
+            flash('Kendi admin yetkilerinizi kaldıramazsınız!', 'error')
+            return render_template('admin/user_role_form.html', 
+                                   user=user, departments=departments)
+        
+        # Kullanıcıyı güncelle
+        success = update_user(
+            user_id, 
+            user['full_name'], 
+            user['email'], 
+            new_role, 
+            new_department_id, 
+            user['is_active']
+        )
+        
+        if success:
+            flash('Kullanıcı rolü başarıyla güncellendi!', 'success')
+            return redirect(url_for('admin.users_list'))
+        else:
+            flash('Güncelleme sırasında hata oluştu!', 'error')
+    
+    return render_template('admin/user_role_form.html', 
+                           user=user, departments=departments)

@@ -67,8 +67,14 @@ def get_instructors_by_department(department_id):
     Döndürür:
         instructors: Öğretim üyesi listesi
     """
-    # SQL sorgusu
-    query = "SELECT * FROM instructors WHERE department_id = ? ORDER BY name"
+    # SQL sorgusu - department_name eklendi
+    query = """
+        SELECT i.*, d.name as department_name 
+        FROM instructors i
+        LEFT JOIN departments d ON i.department_id = d.id
+        WHERE i.department_id = ? 
+        ORDER BY i.name
+    """
     
     # Sorguyu çalıştır
     results = execute_query(query, (department_id,))
