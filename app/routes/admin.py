@@ -36,6 +36,10 @@ from app.models.availability import (
     get_all_availability_with_instructor
 )
 from app.models.user import get_all_users, get_user_by_id, delete_user, update_user
+from app.models.student import (
+    get_all_students, get_student_by_id, get_students_by_department,
+    get_student_courses, get_student_count, get_departments_with_student_count
+)
 
 # Blueprint oluştur
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -787,6 +791,7 @@ def availability_list():
     # Admin ise tüm müsaitlikleri göster
     if role == 'admin':
         availability = get_all_availability_with_instructor()
+        instructors = get_all_instructors()
     else:
         # Bölüm yetkilisi ise sadece kendi bölümündeki hocaların müsaitliklerini göster
         user_dept_id = get_user_department_id()
@@ -796,8 +801,52 @@ def availability_list():
         for item in all_availability:
             if item['department_id'] == user_dept_id:
                 availability.append(item)
+        instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
-    return render_template('admin/availability.html', availability=availability)
+    # Instructor filtresi
+    selected_instructor = request.args.get('instructor', type=int)
+    if selected_instructor:
+        availability = [item for item in availability if item['instructor_id'] == selected_instructor]
+    
+    # Takvim verisi hazırla - gün ve saate göre
+    # Her müsaitlik kaydını tüm kapsadığı saatlere genişlet
+    calendar_data = {}
+    for item in availability:
+        day = item['day_of_week']
+        # Başlangıç ve bitiş saatlerini al
+        start_hour = int(item['start_time'].split(':')[0])
+        end_hour = int(item['end_time'].split(':')[0])
+        
+        # Her saat için kayıt ekle
+        for hour in range(start_hour, end_hour):
+            if day not in calendar_data:
+                calendar_data[day] = {}
+            
+            if hour not in calendar_data[day]:
+                calendar_data[day][hour] = []
+            
+            # Bu saatte bu hocanın kaydı var mı kontrol et
+            already_exists = False
+            for existing in calendar_data[day][hour]:
+                if existing['id'] == item['id']:
+                    already_exists = True
+                    break
+            
+            if not already_exists:
+                calendar_data[day][hour].append({
+                    'id': item['id'],
+                    'instructor_id': item['instructor_id'],
+                    'instructor_name': item['instructor_name'],
+                    'start_time': item['start_time'],
+                    'end_time': item['end_time'],
+                    'is_available': item['is_available']
+                })
+    
+    return render_template('admin/availability.html', 
+                          availability=availability,
+                          instructors=instructors,
+                          calendar_data=calendar_data,
+                          selected_instructor=selected_instructor)
 
 
 @bp.route('/availability/add', methods=['GET', 'POST'])
@@ -975,3 +1024,130 @@ def user_edit(user_id):
     
     return render_template('admin/user_role_form.html', 
                            user=user, departments=departments)
+
+
+# ==============================================
+# ÖĞRENCİ YÖNETİMİ
+# ==============================================
+
+@bp.route('/students')
+def students_list():
+    """Öğrenci yönetimi sayfası."""
+    if not check_admin():
+        flash('Bu sayfaya erişim yetkiniz yok!', 'error')
+        return redirect(url_for('auth.login'))
+    
+    departments = get_departments_with_student_count()
+    total_students = get_student_count()
+    
+    return render_template('admin/students.html',
+                           departments=departments,
+                           total_students=total_students)
+
+
+@bp.route('/students/department/<int:department_id>')
+def students_by_department(department_id):
+    """Bölüme göre öğrenci listesi (JSON)."""
+    if not check_admin():
+        return {'error': 'Yetkisiz erişim'}, 403
+    
+    students = get_students_by_department(department_id)
+    
+    # sqlite3.Row'ları dict'e çevir
+    students_list = []
+    for s in students:
+        students_list.append({
+            'id': s['id'],
+            'student_no': s['student_no'],
+            'name': s['name'],
+            'email': s['email'],
+            'phone': s['phone'] if 'phone' in s.keys() else None,
+            'grade': s['grade'] if 'grade' in s.keys() else 1,
+            'department_name': s['department_name']
+        })
+    
+    return {'students': students_list}
+
+
+@bp.route('/students/<int:student_id>')
+def student_detail(student_id):
+    """Öğrenci detayı (JSON)."""
+    if not check_admin():
+        return {'error': 'Yetkisiz erişim'}, 403
+    
+    student = get_student_by_id(student_id)
+    
+    if not student:
+        return {'error': 'Öğrenci bulunamadı'}, 404
+    
+    courses = get_student_courses(student_id)
+    
+    # sqlite3.Row'ları dict'e çevir
+    student_dict = {
+        'id': student['id'],
+        'student_no': student['student_no'],
+        'tc_no': student['tc_no'] if 'tc_no' in student.keys() else None,
+        'name': student['name'],
+        'email': student['email'],
+        'phone': student['phone'] if 'phone' in student.keys() else None,
+        'address': student['address'] if 'address' in student.keys() else None,
+        'birth_date': student['birth_date'] if 'birth_date' in student.keys() else None,
+        'grade': student['grade'] if 'grade' in student.keys() else 1,
+        'department_name': student['department_name']
+    }
+    
+    courses_list = []
+    for c in courses:
+        courses_list.append({
+            'id': c['id'],
+            'code': c['code'],
+            'name': c['name'],
+            'instructor_name': c['instructor_name'] if 'instructor_name' in c.keys() else None
+        })
+    
+    return {'student': student_dict, 'courses': courses_list}
+
+
+@bp.route('/students/<int:student_id>/update', methods=['POST'])
+def student_update(student_id):
+    """Öğrenci günceller (JSON)."""
+    if not check_admin():
+        return {'error': 'Yetkisiz erişim'}, 403
+    
+    from app.database import execute_update
+    
+    data = request.get_json()
+    
+    if not data:
+        return {'error': 'Veri bulunamadı'}, 400
+    
+    try:
+        query = """
+            UPDATE students SET
+                name = ?,
+                tc_no = ?,
+                email = ?,
+                phone = ?,
+                birth_date = ?,
+                grade = ?,
+                address = ?
+            WHERE id = ?
+        """
+        
+        execute_update(query, (
+            data.get('name'),
+            data.get('tc_no'),
+            data.get('email'),
+            data.get('phone'),
+            data.get('birth_date'),
+            data.get('grade'),
+            data.get('address'),
+            student_id
+        ))
+        
+        return {'success': True}
+    
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+

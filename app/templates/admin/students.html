@@ -1,0 +1,567 @@
+{% extends 'base.html' %}
+
+{% block title %}Öğrenci Yönetimi - Admin{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>🎓 Öğrenci Yönetimi</h1>
+            <div class="header-stats">
+                <span class="badge badge-primary">{{ total_students }} Öğrenci</span>
+            </div>
+        </div>
+
+        <!-- Bölümler Grid -->
+        <div class="departments-grid">
+            {% for dept in departments %}
+            <div class="department-card" data-dept-id="{{ dept.id }}">
+                <div class="dept-header" onclick="toggleDepartment({{ dept.id }})">
+                    <h3>📚 {{ dept.name }}</h3>
+                    <div class="dept-stats">
+                        <span class="badge">{{ dept.student_count }} Öğrenci</span>
+                        <span class="badge badge-secondary">{{ dept.course_count }} Ders</span>
+                    </div>
+                </div>
+                <div class="dept-expand-icon" onclick="toggleDepartment({{ dept.id }})">▼</div>
+
+                <!-- Öğrenci Listesi -->
+                <div id="dept-students-{{ dept.id }}" class="students-list" style="display: none;">
+                    <div class="loading-spinner">Yükleniyor...</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Geri Butonu -->
+        <div class="back-link">
+            <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
+        </div>
+    </div>
+</section>
+
+<!-- Öğrenci Düzenleme Modal -->
+<div id="student-modal" class="student-modal-overlay">
+    <div class="student-modal-container">
+        <div class="student-modal-header">
+            <h3>👤 Öğrenci Bilgileri</h3>
+            <button class="student-modal-close" onclick="closeStudentModal()">&times;</button>
+        </div>
+        <div class="student-modal-body" id="student-detail-content">
+            <!-- İçerik buraya yüklenecek -->
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Bölüm Kartları */
+    .departments-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .department-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-bottom: none;
+    }
+
+    .department-card:first-child {
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .department-card:last-child {
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+    }
+
+    .department-card .dept-header {
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+
+    .department-card .dept-header:hover {
+        background: rgba(37, 99, 235, 0.1);
+    }
+
+    .department-card.active .dept-header {
+        background: rgba(37, 99, 235, 0.15);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .dept-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--text-white);
+    }
+
+    .dept-stats {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .dept-expand-icon {
+        position: absolute;
+        right: 1.5rem;
+        color: var(--text-light);
+        transition: transform 0.3s;
+        cursor: pointer;
+        display: none;
+    }
+
+    .department-card {
+        position: relative;
+    }
+
+    .department-card.active .dept-expand-icon {
+        transform: rotate(180deg);
+    }
+
+    /* Öğrenci Listesi */
+    .students-list {
+        background: var(--dark-bg);
+        padding: 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .students-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .students-table th {
+        background: var(--card-bg);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        color: var(--text-light);
+        font-weight: 600;
+        font-size: 0.85rem;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .students-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .students-table tbody tr {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .students-table tbody tr:hover {
+        background: rgba(37, 99, 235, 0.15);
+    }
+
+    .loading-spinner {
+        padding: 2rem;
+        text-align: center;
+        color: var(--text-light);
+    }
+
+    /* Modal Overlay - Yeni Stil */
+    .student-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+    }
+
+    .student-modal-overlay.active {
+        display: flex;
+    }
+
+    .student-modal-container {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .student-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+    }
+
+    .student-modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .student-modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+
+    .student-modal-close:hover {
+        opacity: 1;
+    }
+
+    .student-modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        max-height: calc(80vh - 60px);
+    }
+
+    /* Form Stili */
+    .student-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        color: var(--text-light);
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group select {
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-white);
+        font-size: 0.95rem;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    .form-group input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Dersler Bölümü */
+    .student-courses-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .student-courses-section h4 {
+        margin: 0 0 1rem 0;
+        color: var(--primary-color);
+        font-size: 1rem;
+    }
+
+    .courses-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .course-badge {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-md);
+        font-size: 0.8rem;
+    }
+
+    /* Butonlar */
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-save {
+        flex: 1;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .btn-save:hover {
+        opacity: 0.9;
+    }
+
+    .btn-cancel {
+        flex: 1;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        color: var(--text-light);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: var(--border-color);
+    }
+</style>
+
+<script>
+    // Açık bölümler
+    const openDepartments = new Set();
+
+    // Bölüm açma/kapama
+    function toggleDepartment(deptId) {
+        const card = document.querySelector(`[data-dept-id="${deptId}"]`);
+        const studentsList = document.getElementById('dept-students-' + deptId);
+
+        if (openDepartments.has(deptId)) {
+            // Kapat
+            openDepartments.delete(deptId);
+            card.classList.remove('active');
+            studentsList.style.display = 'none';
+        } else {
+            // Aç
+            openDepartments.add(deptId);
+            card.classList.add('active');
+            studentsList.style.display = 'block';
+
+            // İlk kez açılıyorsa öğrencileri yükle
+            if (studentsList.querySelector('.loading-spinner')) {
+                loadDepartmentStudents(deptId);
+            }
+        }
+    }
+
+    // Bölüm öğrencilerini yükle
+    function loadDepartmentStudents(deptId) {
+        fetch('/admin/students/department/' + deptId)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('dept-students-' + deptId);
+
+                if (data.students.length === 0) {
+                    container.innerHTML = '<div class="loading-spinner">Bu bölümde öğrenci bulunmamaktadır.</div>';
+                    return;
+                }
+
+                let html = '<table class="students-table">';
+                html += '<thead><tr><th>Öğrenci No</th><th>Ad Soyad</th><th>Sınıf</th><th>E-posta</th></tr></thead>';
+                html += '<tbody>';
+
+                data.students.forEach(student => {
+                    const grade = student.grade || 1;
+                    html += `<tr onclick="showStudentDetail(${student.id})">`;
+                    html += `<td>${student.student_no}</td>`;
+                    html += `<td>${student.name}</td>`;
+                    html += `<td>${grade}. Sınıf</td>`;
+                    html += `<td>${student.email || '-'}</td>`;
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                const container = document.getElementById('dept-students-' + deptId);
+                container.innerHTML = '<div class="loading-spinner">Yükleme hatası!</div>';
+            });
+    }
+
+    // Öğrenci detayını göster
+    function showStudentDetail(studentId) {
+        const modal = document.getElementById('student-modal');
+        const content = document.getElementById('student-detail-content');
+
+        modal.classList.add('active');
+        content.innerHTML = '<div class="loading-spinner">Yükleniyor...</div>';
+
+        fetch('/admin/students/' + studentId)
+            .then(response => response.json())
+            .then(data => {
+                const student = data.student;
+                const courses = data.courses;
+
+                let html = `
+            <form id="student-edit-form" onsubmit="saveStudent(event, ${student.id})">
+                <div class="student-form-grid">
+                    <div class="form-group">
+                        <label>Öğrenci No</label>
+                        <input type="text" value="${student.student_no}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>TC Kimlik No</label>
+                        <input type="text" name="tc_no" value="${student.tc_no || ''}" maxlength="11">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Ad Soyad</label>
+                        <input type="text" name="name" value="${student.name}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>E-posta</label>
+                        <input type="email" name="email" value="${student.email || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <input type="text" name="phone" value="${student.phone || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Doğum Tarihi</label>
+                        <input type="date" name="birth_date" value="${student.birth_date || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>Sınıf</label>
+                        <select name="grade">
+                            <option value="1" ${student.grade == 1 ? 'selected' : ''}>1. Sınıf</option>
+                            <option value="2" ${student.grade == 2 ? 'selected' : ''}>2. Sınıf</option>
+                            <option value="3" ${student.grade == 3 ? 'selected' : ''}>3. Sınıf</option>
+                            <option value="4" ${student.grade == 4 ? 'selected' : ''}>4. Sınıf</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Adres</label>
+                        <input type="text" name="address" value="${student.address || ''}">
+                    </div>
+                </div>
+                
+                <div class="student-courses-section">
+                    <h4>📚 Aldığı Dersler (${courses.length})</h4>
+                    <div class="courses-badges">
+                        ${courses.length > 0 ?
+                        courses.map(c => `<span class="course-badge">${c.code}</span>`).join('') :
+                        '<span style="color: var(--text-light);">Ders kaydı yok</span>'}
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeStudentModal()">İptal</button>
+                    <button type="submit" class="btn-save">💾 Kaydet</button>
+                </div>
+            </form>`;
+
+                content.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                content.innerHTML = '<div class="loading-spinner">Yükleme hatası!</div>';
+            });
+    }
+
+    // Öğrenci kaydet
+    function saveStudent(event, studentId) {
+        event.preventDefault();
+
+        const form = document.getElementById('student-edit-form');
+        const formData = new FormData(form);
+
+        const data = {
+            name: formData.get('name'),
+            tc_no: formData.get('tc_no'),
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            birth_date: formData.get('birth_date'),
+            grade: formData.get('grade'),
+            address: formData.get('address')
+        };
+
+        fetch('/admin/students/' + studentId + '/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Öğrenci bilgileri güncellendi!');
+                    closeStudentModal();
+                    // Listeyi yenile
+                    openDepartments.forEach(deptId => {
+                        const container = document.getElementById('dept-students-' + deptId);
+                        container.innerHTML = '<div class="loading-spinner">Yükleniyor...</div>';
+                        loadDepartmentStudents(deptId);
+                    });
+                } else {
+                    alert('Hata: ' + (result.error || 'Güncelleme başarısız'));
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                alert('Bir hata oluştu!');
+            });
+    }
+
+    // Modal kapat
+    function closeStudentModal() {
+        document.getElementById('student-modal').classList.remove('active');
+    }
+
+    // ESC ile modal kapat
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeStudentModal();
+        }
+    });
+
+    // Modal dışına tıklayınca kapat
+    document.getElementById('student-modal').addEventListener('click', function (e) {
+        if (e.target === this) {
+            closeStudentModal();
+        }
+    });
+</script>
+{% endblock %}

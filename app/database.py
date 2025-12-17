@@ -113,6 +113,17 @@ def load_seed_data():
     # Değişiklikleri kaydet
     connection.commit()
     
+    # Öğrenci verilerini yükle (800+ öğrenci)
+    students_data_path = os.path.join(BASE_DIR, 'database', 'students_data.sql')
+    if os.path.exists(students_data_path):
+        students_file = open(students_data_path, 'r', encoding='utf-8')
+        students_sql = students_file.read()
+        students_file.close()
+        
+        cursor.executescript(students_sql)
+        connection.commit()
+        print(f"800+ öğrenci verisi yüklendi!")
+    
     # Bağlantıyı kapat
     connection.close()
     

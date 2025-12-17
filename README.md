@@ -6,33 +6,10 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 > **Kocaeli Sağlık ve Teknoloji Üniversitesi**  
-> **Yazılım Lab I - Proje 2**  
+> **Yazılım Lab II - Proje**  
 > **2025-2026 Güz Dönemi**
 
 Bir üniversitede dönem sonu veya ara sınavlarının **otomatik olarak planlanması** ve **dersliklere yerleştirilmesi** işlemini yapan web tabanlı uygulama.
-
----
-
-## 📸 Ekran Görüntüleri
-
-<details>
-<summary>🖼️ Ekran görüntülerini görmek için tıkla</summary>
-
-### Ana Sayfa
-- Modern ve kullanıcı dostu arayüz
-- Özellikler ve nasıl çalışır bölümleri
-
-### Admin Paneli
-- İstatistik kartları
-- Hızlı erişim menüsü
-- Role göre özelleştirilmiş içerik
-
-### Sınav Programı
-- Tablo görünümü
-- Bölüm bazlı filtreleme
-- PDF ve Excel export
-
-</details>
 
 ---
 
@@ -47,6 +24,12 @@ Bir üniversitede dönem sonu veya ara sınavlarının **otomatik olarak planlan
 - Fakülte, Bölüm, Ders, Derslik CRUD işlemleri
 - Öğretim üyesi yönetimi
 - Hoca müsaitlik bilgileri girişi
+
+### 👨‍🎓 Öğrenci Yönetimi
+- Öğrenci kayıt ve düzenleme
+- TC, telefon, adres bilgileri yönetimi
+- Öğrenci-ders ilişkilendirme
+- Toplu öğrenci oluşturma desteği
 
 ### 🤖 Otomatik Planlama
 - Greedy (açgözlü) algoritma ile akıllı yerleştirme
@@ -72,8 +55,8 @@ Bir üniversitede dönem sonu veya ara sınavlarının **otomatik olarak planlan
 
 1. **Projeyi klonlayın:**
 ```bash
-git clone https://github.com/KULLANICI_ADI/sinav-programi.git
-cd sinav-programi
+git clone https://github.com/Nereplaa/Exam-Calendar-maker.git
+cd Exam-Calendar-maker
 ```
 
 2. **Sanal ortam oluşturun (opsiyonel ama önerilir):**
@@ -115,7 +98,7 @@ http://127.0.0.1:5000
 ## 📁 Proje Yapısı
 
 ```
-sinav-programi/
+Exam-Calendar-maker/
 ├── app/
 │   ├── __init__.py          # Flask uygulaması fabrikası
 │   ├── database.py          # Veritabanı işlemleri
@@ -129,6 +112,7 @@ sinav-programi/
 │   │   ├── instructor.py    # Öğretim üyesi işlemleri
 │   │   ├── course.py        # Ders işlemleri
 │   │   ├── classroom.py     # Derslik işlemleri
+│   │   ├── student.py       # Öğrenci işlemleri
 │   │   ├── availability.py  # Müsaitlik işlemleri
 │   │   └── exam.py          # Sınav planı işlemleri
 │   │
@@ -149,7 +133,7 @@ sinav-programi/
 │       └── js/main.js       # JavaScript
 │
 ├── database/
-│   ├── schema.sql           # Veritabanı şeması (10 tablo)
+│   ├── schema.sql           # Veritabanı şeması
 │   └── seed.sql             # Örnek veriler
 │
 ├── exports/                 # Dışa aktarılan dosyalar
@@ -163,22 +147,6 @@ sinav-programi/
 
 ## 🗄️ Veritabanı Şeması
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   faculties  │────>│  departments │────>│   courses    │
-└──────────────┘     └──────────────┘     └──────────────┘
-                            │                    │
-                            ▼                    ▼
-                     ┌──────────────┐     ┌──────────────┐
-                     │  instructors │────>│ exam_schedule│
-                     └──────────────┘     └──────────────┘
-                            │                    │
-                            ▼                    ▼
-                     ┌──────────────┐     ┌──────────────┐
-                     │ availability │     │  classrooms  │
-                     └──────────────┘     └──────────────┘
-```
-
 ### Tablolar
 | Tablo | Açıklama |
 |-------|----------|
@@ -190,7 +158,7 @@ sinav-programi/
 | classrooms | Derslikler |
 | instructor_availability | Hoca müsaitlikleri |
 | exam_schedule | Sınav programı |
-| students | Öğrenciler (opsiyonel) |
+| students | Öğrenciler |
 | student_courses | Öğrenci-ders ilişkisi |
 
 ---
@@ -236,6 +204,7 @@ Uygulama **Greedy (Açgözlü)** algoritma kullanır:
 | GET | `/admin/instructors` | Hoca listesi |
 | GET | `/admin/courses` | Ders listesi |
 | GET | `/admin/classrooms` | Derslik listesi |
+| GET | `/admin/students` | Öğrenci listesi |
 | GET | `/schedule/view` | Sınav programı |
 | POST | `/schedule/generate` | Otomatik planlama |
 | GET | `/schedule/export/pdf` | PDF indir |
@@ -257,27 +226,11 @@ Uygulama **Greedy (Açgözlü)** algoritma kullanır:
 
 ---
 
-## 📝 Değerlendirme Kriterleri
-
-| Kriter | Puan | Durum |
-|--------|------|-------|
-| Kod Kalitesi | 20 | ✅ |
-| Veritabanı Tasarımı | 20 | ✅ |
-| Fonksiyonel Doğru Çalışma | 25 | ✅ |
-| Arayüz | 15 | ✅ |
-| Sunum Kalitesi | 10 | ⏳ |
-| Kullanıcı Dostu | 10 | ✅ |
-| **TOPLAM** | **100** | |
-
----
-
-## 👥 Ekip
+##  Ekip
 
 | İsim | Görev |
 |------|-------|
-| [İsim 1] | Backend Geliştirme |
-| [İsim 2] | Frontend Geliştirme |
-| [İsim 3] | Veritabanı & Test |
+| Alperen | Full Stack Geliştirme |
 
 ---
 
@@ -287,14 +240,6 @@ Bu proje eğitim amaçlı geliştirilmiştir.
 
 ---
 
-## 🙏 Teşekkürler
-
-- Kocaeli Sağlık ve Teknoloji Üniversitesi
-- Yazılım Lab I Dersi Hocalarımız
-
----
-
 <p align="center">
   <b>🎓 2025 - Kocaeli Sağlık ve Teknoloji Üniversitesi</b>
 </p>
-

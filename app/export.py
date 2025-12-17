@@ -3,17 +3,20 @@
 # ==============================================
 # Bu dosya sınav programını PDF ve Excel
 # formatlarında dışa aktarma işlemlerini yapar.
+# Takvim Formatı: Tarihler sütun, saatler satır
+# Her bölüm için ayrı tablo
 # ==============================================
 
 import os
 from datetime import datetime
+from collections import defaultdict
 
 # PDF oluşturma için
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -22,259 +25,282 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
 from app.models.exam import get_all_exams
+from app.database import execute_query
 
 
 def get_export_folder():
-    """
-    Export klasörünün yolunu döndürür.
-    Klasör yoksa oluşturur.
-    """
-    # Proje klasörünü bul
+    """Export klasörünün yolunu döndürür."""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    # Export klasörü
     export_folder = os.path.join(base_dir, 'exports')
-    
-    # Klasör yoksa oluştur
     if not os.path.exists(export_folder):
         os.makedirs(export_folder)
-    
     return export_folder
 
 
-def export_to_pdf():
+def get_departments():
+    """Tüm bölümleri getirir."""
+    query = "SELECT id, name FROM departments ORDER BY name"
+    return execute_query(query)
+
+
+def get_exams_by_department(department_id):
+    """Bölüme göre sınavları getirir."""
+    query = """
+        SELECT e.*, 
+               c.code as course_code, 
+               c.name as course_name,
+               c.student_count,
+               cl.name as classroom_name,
+               s.name as supervisor_name,
+               i.name as instructor_name
+        FROM exam_schedule e
+        LEFT JOIN courses c ON e.course_id = c.id
+        LEFT JOIN classrooms cl ON e.classroom_id = cl.id
+        LEFT JOIN instructors s ON e.supervisor_id = s.id
+        LEFT JOIN instructors i ON c.instructor_id = i.id
+        WHERE c.department_id = ?
+        ORDER BY e.exam_date, e.start_time
     """
-    Sınav programını PDF olarak dışa aktarır.
+    return execute_query(query, (department_id,))
+
+
+def organize_exams_as_calendar(exams):
+    """
+    Sınavları takvim formatında organize eder.
     
     Döndürür:
-        file_path: Oluşturulan PDF dosyasının yolu
+        dates: Benzersiz tarihler listesi (DD.MM.YYYY formatında)
+        time_slots: Benzersiz saat dilimleri listesi
+        calendar_data: {(tarih, saat): exam_info} sözlüğü
     """
-    # Sınavları al
-    exams = get_all_exams()
+    # Tarihleri DD.MM.YYYY formatına çevir
+    def format_date(date_str):
+        if '-' in date_str and len(date_str) == 10:
+            parts = date_str.split('-')
+            return f"{parts[2]}.{parts[1]}.{parts[0]}"
+        return date_str
     
-    # Dosya adını oluştur
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = 'sinav_programi_' + timestamp + '.pdf'
+    raw_dates = sorted(set(exam['exam_date'] for exam in exams))
+    dates = [format_date(d) for d in raw_dates]
+    time_slots = sorted(set(exam['start_time'] + '-' + exam['end_time'] for exam in exams))
     
-    # Dosya yolunu oluştur
-    export_folder = get_export_folder()
-    file_path = os.path.join(export_folder, filename)
-    
-    # Türkçe karakter desteği için font kaydet
-    # Windows'ta Arial veya başka TTF font kullan
-    font_registered = False
-    font_name = 'Helvetica'  # Varsayılan
-    font_name_bold = 'Helvetica-Bold'
-    
-    # DejaVuSans fontunu dene (eğer varsa)
-    try:
-        # Proje klasöründe fonts klasörü oluştur ve oradan oku
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        font_path = os.path.join(base_dir, 'fonts', 'DejaVuSans.ttf')
-        font_path_bold = os.path.join(base_dir, 'fonts', 'DejaVuSans-Bold.ttf')
+    calendar_data = {}
+    for exam in exams:
+        date = format_date(exam['exam_date'])  # Formatlanmış tarih kullan
+        time_slot = exam['start_time'] + '-' + exam['end_time']
+        key = (date, time_slot)
         
-        if os.path.exists(font_path):
-            pdfmetrics.registerFont(TTFont('DejaVuSans', font_path))
-            if os.path.exists(font_path_bold):
-                pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', font_path_bold))
-                font_name_bold = 'DejaVuSans-Bold'
-            font_name = 'DejaVuSans'
+        exam_info = f"{exam['course_code']}\n{exam['classroom_name']}"
+        
+        # supervisor_name veya instructor_name'i kontrol et
+        supervisor = None
+        try:
+            supervisor = exam['supervisor_name']
+        except (KeyError, IndexError):
+            pass
+        
+        if not supervisor:
+            try:
+                supervisor = exam['instructor_name']
+            except (KeyError, IndexError):
+                pass
+        
+        if supervisor:
+            exam_info += f"\n({supervisor})"
+        
+        if key in calendar_data:
+            calendar_data[key] += '\n---\n' + exam_info
+        else:
+            calendar_data[key] = exam_info
+    
+    return dates, time_slots, calendar_data
+
+
+def register_fonts():
+    """Türkçe karakter desteği için font kaydet."""
+    font_name = 'Helvetica'
+    font_name_bold = 'Helvetica-Bold'
+    font_registered = False
+    
+    # Windows Arial
+    try:
+        arial_path = 'C:/Windows/Fonts/arial.ttf'
+        arial_bold_path = 'C:/Windows/Fonts/arialbd.ttf'
+        
+        if os.path.exists(arial_path):
+            pdfmetrics.registerFont(TTFont('Arial', arial_path))
+            if os.path.exists(arial_bold_path):
+                pdfmetrics.registerFont(TTFont('Arial-Bold', arial_bold_path))
+                font_name_bold = 'Arial-Bold'
+            font_name = 'Arial'
             font_registered = True
     except:
         pass
     
-    # Windows Arial fontunu dene
-    if not font_registered:
-        try:
-            # Windows Arial font yolu
-            arial_path = 'C:/Windows/Fonts/arial.ttf'
-            arial_bold_path = 'C:/Windows/Fonts/arialbd.ttf'
-            
-            if os.path.exists(arial_path):
-                pdfmetrics.registerFont(TTFont('Arial', arial_path))
-                if os.path.exists(arial_bold_path):
-                    pdfmetrics.registerFont(TTFont('Arial-Bold', arial_bold_path))
-                    font_name_bold = 'Arial-Bold'
-                font_name = 'Arial'
-                font_registered = True
-        except:
-            pass
+    return font_name, font_name_bold, font_registered
+
+
+def convert_turkish(text, font_registered):
+    """Türkçe karakterleri ASCII'ye çevir (font yoksa)."""
+    if font_registered or not text:
+        return text
     
-    # PDF belgesi oluştur (yatay A4)
+    tr_chars = {'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G', 
+               'ü': 'u', 'Ü': 'U', 'ş': 's', 'Ş': 'S',
+               'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C'}
+    for tr, en in tr_chars.items():
+        text = text.replace(tr, en)
+    return text
+
+
+def export_to_pdf():
+    """
+    Sınav programını takvim formatında PDF olarak dışa aktarır.
+    Her bölüm için ayrı tablo.
+    """
+    # Dosya oluştur
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = 'sinav_programi_' + timestamp + '.pdf'
+    file_path = os.path.join(get_export_folder(), filename)
+    
+    # Font kaydet
+    font_name, font_name_bold, font_registered = register_fonts()
+    
+    # PDF belgesi oluştur
     doc = SimpleDocTemplate(
         file_path,
         pagesize=landscape(A4),
-        rightMargin=1*cm,
-        leftMargin=1*cm,
-        topMargin=1*cm,
-        bottomMargin=1*cm
+        rightMargin=0.5*cm,
+        leftMargin=0.5*cm,
+        topMargin=0.5*cm,
+        bottomMargin=0.5*cm
     )
     
-    # Stil ayarları
     styles = getSampleStyleSheet()
     
-    # Başlık stili
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontName=font_name_bold if font_registered else 'Helvetica-Bold',
-        fontSize=18,
-        alignment=1,  # Ortalı
-        spaceAfter=20
-    )
-    
-    # Alt başlık stili
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Normal'],
-        fontName=font_name if font_registered else 'Helvetica',
-        fontSize=10,
+        fontName=font_name_bold,
+        fontSize=16,
         alignment=1,
-        spaceAfter=30
+        spaceAfter=10
     )
     
-    # İçerik listesi
+    dept_style = ParagraphStyle(
+        'DeptTitle',
+        parent=styles['Heading2'],
+        fontName=font_name_bold,
+        fontSize=12,
+        textColor=colors.HexColor('#2563eb'),
+        spaceAfter=5,
+        spaceBefore=10
+    )
+    
     elements = []
     
-    # Başlık ekle
+    # Ana başlık
     title = Paragraph("SINAV PROGRAMI", title_style)
     elements.append(title)
     
-    # Alt başlık (tarih)
     today = datetime.now().strftime('%d.%m.%Y')
-    subtitle = Paragraph("Olusturulma Tarihi: " + today, subtitle_style)
+    subtitle = Paragraph(f"Olusturulma Tarihi: {today}", styles['Normal'])
     elements.append(subtitle)
+    elements.append(Spacer(1, 0.5*cm))
     
-    # Sınav verisi yoksa
-    if len(exams) == 0:
-        no_data_style = ParagraphStyle(
-            'NoData',
-            parent=styles['Normal'],
-            fontName=font_name if font_registered else 'Helvetica'
-        )
-        no_data = Paragraph("Henuz planlanmis sinav bulunmamaktadir.", no_data_style)
-        elements.append(no_data)
-    else:
-        # Tablo verilerini hazırla
-        table_data = []
+    # Bölümleri al
+    departments = get_departments()
+    
+    for dept in departments:
+        dept_id = dept['id']
+        dept_name = convert_turkish(dept['name'], font_registered)
         
-        # Başlık satırı
-        headers = ['Tarih', 'Saat', 'Ders Kodu', 'Ders Adi', 'Bolum', 'Ogretim Uyesi', 'Derslik', 'Ogrenci']
-        table_data.append(headers)
+        # Bu bölümün sınavlarını al
+        exams = get_exams_by_department(dept_id)
         
-        # Veri satırları
-        for exam in exams:
-            # Türkçe karakterleri temizle (font yoksa)
-            course_name = exam['course_name']
-            department_name = exam['department_name']
-            instructor_name = exam['instructor_name']
-            
-            if not font_registered:
-                # Türkçe karakterleri ASCII'ye çevir
-                tr_chars = {'ı': 'i', 'İ': 'I', 'ğ': 'g', 'Ğ': 'G', 
-                           'ü': 'u', 'Ü': 'U', 'ş': 's', 'Ş': 'S',
-                           'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C'}
-                for tr, en in tr_chars.items():
-                    course_name = course_name.replace(tr, en)
-                    department_name = department_name.replace(tr, en)
-                    instructor_name = instructor_name.replace(tr, en)
-            
-            row = [
-                exam['exam_date'],
-                exam['start_time'] + '-' + exam['end_time'],
-                exam['course_code'],
-                course_name,
-                department_name,
-                instructor_name,
-                exam['classroom_name'],
-                str(exam['student_count'])
-            ]
+        if len(exams) == 0:
+            continue
+        
+        # Bölüm başlığı
+        dept_title = Paragraph(f"📚 {dept_name}", dept_style)
+        elements.append(dept_title)
+        
+        # Takvim formatına dönüştür
+        dates, time_slots, calendar_data = organize_exams_as_calendar(exams)
+        
+        if not dates or not time_slots:
+            continue
+        
+        # Tablo verisi oluştur
+        # İlk satır: boş + tarihler
+        header_row = ['Saat'] + dates
+        table_data = [header_row]
+        
+        # Saat satırları
+        for time_slot in time_slots:
+            row = [time_slot]
+            for date in dates:
+                key = (date, time_slot)
+                cell_value = calendar_data.get(key, '')
+                cell_value = convert_turkish(cell_value, font_registered)
+                row.append(cell_value)
             table_data.append(row)
         
-        # Tablo oluştur
-        table = Table(table_data, repeatRows=1)
+        # Sütun genişlikleri
+        num_cols = len(dates) + 1
+        col_width = (26*cm) / num_cols
+        col_widths = [col_width] * num_cols
+        col_widths[0] = 2.5*cm  # Saat sütunu
         
-        # Tablo stili
+        # Tablo oluştur
+        table = Table(table_data, colWidths=col_widths)
+        
         table_style = TableStyle([
-            # Başlık satırı
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), font_name_bold if font_registered else 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            
-            # Tüm hücreler
-            ('FONTNAME', (0, 1), (-1, -1), font_name if font_registered else 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e5e7eb')),
+            ('FONTNAME', (0, 0), (-1, 0), font_name_bold),
+            ('FONTNAME', (0, 0), (0, -1), font_name_bold),
+            ('FONTNAME', (1, 1), (-1, -1), font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            
-            # Kenarlıklar
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            
-            # Alternatif satır renkleri
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-            
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ])
         
         table.setStyle(table_style)
         elements.append(table)
+        elements.append(PageBreak())  # Her bölüm yeni sayfada
     
-    # PDF'i oluştur
+    # Sınav yoksa
+    if len(elements) <= 3:
+        elements.append(Paragraph("Henuz planlanmis sinav bulunmamaktadir.", styles['Normal']))
+    
     doc.build(elements)
-    
     return file_path
 
 
 def export_to_excel():
     """
-    Sınav programını Excel olarak dışa aktarır.
-    
-    Döndürür:
-        file_path: Oluşturulan Excel dosyasının yolu
+    Sınav programını takvim formatında Excel olarak dışa aktarır.
+    Her bölüm için ayrı sayfa.
     """
-    # Sınavları al
-    exams = get_all_exams()
-    
-    # Dosya adını oluştur
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = 'sinav_programi_' + timestamp + '.xlsx'
+    file_path = os.path.join(get_export_folder(), filename)
     
-    # Dosya yolunu oluştur
-    export_folder = get_export_folder()
-    file_path = os.path.join(export_folder, filename)
-    
-    # Excel çalışma kitabı oluştur
     workbook = Workbook()
     
-    # Aktif sayfa
-    sheet = workbook.active
-    sheet.title = "Sınav Programı"
-    
-    # Sütun genişlikleri
-    column_widths = {
-        'A': 12,  # Tarih
-        'B': 12,  # Saat
-        'C': 12,  # Ders Kodu
-        'D': 30,  # Ders Adı
-        'E': 25,  # Bölüm
-        'F': 20,  # Öğretim Üyesi
-        'G': 10,  # Derslik
-        'H': 10,  # Öğrenci
-    }
-    
-    for col, width in column_widths.items():
-        sheet.column_dimensions[col].width = width
+    # İlk sayfayı sil
+    default_sheet = workbook.active
     
     # Stiller
-    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_font = Font(bold=True, color='FFFFFF', size=10)
     header_fill = PatternFill(start_color='2563eb', end_color='2563eb', fill_type='solid')
-    header_alignment = Alignment(horizontal='center', vertical='center')
-    
-    cell_alignment = Alignment(horizontal='center', vertical='center')
+    time_fill = PatternFill(start_color='e5e7eb', end_color='e5e7eb', fill_type='solid')
+    cell_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     thin_border = Border(
         left=Side(style='thin'),
         right=Side(style='thin'),
@@ -282,55 +308,84 @@ def export_to_excel():
         bottom=Side(style='thin')
     )
     
-    # Başlık satırı
-    headers = ['Tarih', 'Saat', 'Ders Kodu', 'Ders Adı', 'Bölüm', 'Öğretim Üyesi', 'Derslik', 'Öğrenci']
+    # Bölümleri al
+    departments = get_departments()
+    sheet_created = False
     
-    for col_num, header in enumerate(headers, 1):
-        cell = sheet.cell(row=1, column=col_num, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_alignment
-        cell.border = thin_border
-    
-    # Veri satırları
-    for row_num, exam in enumerate(exams, 2):
-        # Tarih
-        sheet.cell(row=row_num, column=1, value=exam['exam_date'])
+    for dept in departments:
+        dept_id = dept['id']
+        dept_name = dept['name'][:31]  # Excel sayfa adı limiti
         
-        # Saat
-        time_str = exam['start_time'] + '-' + exam['end_time']
-        sheet.cell(row=row_num, column=2, value=time_str)
+        # Bu bölümün sınavlarını al
+        exams = get_exams_by_department(dept_id)
         
-        # Ders Kodu
-        sheet.cell(row=row_num, column=3, value=exam['course_code'])
+        if len(exams) == 0:
+            continue
         
-        # Ders Adı
-        sheet.cell(row=row_num, column=4, value=exam['course_name'])
+        # Yeni sayfa oluştur
+        if not sheet_created:
+            sheet = default_sheet
+            sheet.title = dept_name
+            sheet_created = True
+        else:
+            sheet = workbook.create_sheet(title=dept_name)
         
-        # Bölüm
-        sheet.cell(row=row_num, column=5, value=exam['department_name'])
+        # Takvim formatına dönüştür
+        dates, time_slots, calendar_data = organize_exams_as_calendar(exams)
         
-        # Öğretim Üyesi
-        sheet.cell(row=row_num, column=6, value=exam['instructor_name'])
+        if not dates or not time_slots:
+            continue
         
-        # Derslik
-        sheet.cell(row=row_num, column=7, value=exam['classroom_name'])
+        # Başlık satırı
+        sheet.cell(row=1, column=1, value='Saat')
+        sheet.cell(row=1, column=1).font = header_font
+        sheet.cell(row=1, column=1).fill = header_fill
+        sheet.cell(row=1, column=1).alignment = cell_alignment
+        sheet.cell(row=1, column=1).border = thin_border
         
-        # Öğrenci Sayısı
-        sheet.cell(row=row_num, column=8, value=exam['student_count'])
-        
-        # Hücre stilleri
-        for col_num in range(1, 9):
-            cell = sheet.cell(row=row_num, column=col_num)
+        for col_num, date in enumerate(dates, 2):
+            cell = sheet.cell(row=1, column=col_num, value=date)
+            cell.font = header_font
+            cell.fill = header_fill
             cell.alignment = cell_alignment
             cell.border = thin_border
+        
+        # Saat satırları
+        for row_num, time_slot in enumerate(time_slots, 2):
+            # Saat sütunu
+            time_cell = sheet.cell(row=row_num, column=1, value=time_slot)
+            time_cell.font = Font(bold=True)
+            time_cell.fill = time_fill
+            time_cell.alignment = cell_alignment
+            time_cell.border = thin_border
             
-            # Alternatif satır rengi
-            if row_num % 2 == 0:
-                cell.fill = PatternFill(start_color='f8fafc', end_color='f8fafc', fill_type='solid')
+            # Tarih sütunları
+            for col_num, date in enumerate(dates, 2):
+                key = (date, time_slot)
+                cell_value = calendar_data.get(key, '')
+                
+                cell = sheet.cell(row=row_num, column=col_num, value=cell_value)
+                cell.alignment = cell_alignment
+                cell.border = thin_border
+                
+                # Sınav varsa arka plan rengi
+                if cell_value:
+                    cell.fill = PatternFill(start_color='dbeafe', end_color='dbeafe', fill_type='solid')
+        
+        # Sütun genişlikleri
+        sheet.column_dimensions['A'].width = 12
+        for col_num in range(2, len(dates) + 2):
+            col_letter = chr(64 + col_num)
+            sheet.column_dimensions[col_letter].width = 18
+        
+        # Satır yükseklikleri
+        for row_num in range(1, len(time_slots) + 2):
+            sheet.row_dimensions[row_num].height = 50
     
-    # Dosyayı kaydet
+    # Hiç sayfa oluşturulmadıysa
+    if not sheet_created:
+        default_sheet.title = "Boş"
+        default_sheet.cell(row=1, column=1, value="Henüz planlanmış sınav bulunmamaktadır.")
+    
     workbook.save(file_path)
-    
     return file_path
-

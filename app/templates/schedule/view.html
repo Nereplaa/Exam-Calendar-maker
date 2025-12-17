@@ -14,13 +14,13 @@
                     🤖 Otomatik Planla
                 </a>
                 <a href="{{ url_for('schedule.clear_schedule') }}" class="btn btn-danger"
-                   onclick="return confirm('Tüm sınav programını silmek istediğinize emin misiniz?')">
+                    onclick="return confirm('Tüm sınav programını silmek istediğinize emin misiniz?')">
                     🗑️ Programı Temizle
                 </a>
             </div>
             {% endif %}
         </div>
-        
+
         <!-- İstatistikler -->
         <div class="stats-row">
             <div class="stat-item">
@@ -40,7 +40,7 @@
                 <span class="stat-label">Planlanmamış Ders</span>
             </div>
         </div>
-        
+
         <!-- Filtre ve Export -->
         <div class="filter-export-row">
             <!-- Bölüm Filtresi -->
@@ -49,14 +49,13 @@
                 <select id="department-filter" onchange="filterByDepartment(this.value)">
                     <option value="">Tüm Bölümler</option>
                     {% for dept in departments %}
-                        <option value="{{ dept.id }}" 
-                            {{ 'selected' if selected_department == dept.id else '' }}>
-                            {{ dept.name }}
-                        </option>
+                    <option value="{{ dept.id }}" {{ 'selected' if selected_department==dept.id else '' }}>
+                        {{ dept.name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>
-            
+
             <!-- Export Butonları -->
             {% if exams|length > 0 %}
             <div class="export-buttons">
@@ -69,7 +68,7 @@
             </div>
             {% endif %}
         </div>
-        
+
         <!-- Sınav Tablosu -->
         <div class="card">
             {% if exams|length > 0 %}
@@ -81,8 +80,8 @@
                         <th>Ders Kodu</th>
                         <th>Ders Adı</th>
                         <th>Bölüm</th>
-                        <th>Öğretim Üyesi</th>
                         <th>Derslik</th>
+                        <th>Gözetmen</th>
                         <th>Öğrenci</th>
                         {% if session.get('role') == 'admin' %}
                         <th>İşlem</th>
@@ -99,15 +98,15 @@
                         <td><span class="badge badge-primary">{{ exam.course_code }}</span></td>
                         <td>{{ exam.course_name }}</td>
                         <td>{{ exam.department_name }}</td>
-                        <td>{{ exam.instructor_name }}</td>
                         <td><span class="badge">{{ exam.classroom_name }}</span></td>
+                        <td>{{ exam.supervisor_name or exam.instructor_name }}</td>
                         <td>{{ exam.student_count }}</td>
                         {% if session.get('role') == 'admin' %}
                         <td>
-                            <a href="{{ url_for('schedule.delete_single_exam', exam_id=exam.id) }}" 
-                               class="btn btn-sm btn-delete"
-                               onclick="return confirm('Bu sınavı silmek istediğinize emin misiniz?')">
-                               🗑️</a>
+                            <a href="{{ url_for('schedule.delete_single_exam', exam_id=exam.id) }}"
+                                class="btn btn-sm btn-delete"
+                                onclick="return confirm('Bu sınavı silmek istediğinize emin misiniz?')">
+                                🗑️</a>
                         </td>
                         {% endif %}
                     </tr>
@@ -127,7 +126,7 @@
             </div>
             {% endif %}
         </div>
-        
+
         <!-- Geri Butonu -->
         <div class="back-link">
             <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
@@ -136,13 +135,12 @@
 </section>
 
 <script>
-function filterByDepartment(departmentId) {
-    if (departmentId) {
-        window.location.href = '/schedule/view/department/' + departmentId;
-    } else {
-        window.location.href = '/schedule/view';
+    function filterByDepartment(departmentId) {
+        if (departmentId) {
+            window.location.href = '/schedule/view/department/' + departmentId;
+        } else {
+            window.location.href = '/schedule/view';
+        }
     }
-}
 </script>
 {% endblock %}
-

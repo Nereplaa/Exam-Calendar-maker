@@ -25,13 +25,15 @@ def get_all_exams():
                cl.name as classroom_name,
                cl.capacity as classroom_capacity,
                i.name as instructor_name,
-               d.name as department_name
+               d.name as department_name,
+               s.name as supervisor_name
         FROM exam_schedule e
         LEFT JOIN courses c ON e.course_id = c.id
         LEFT JOIN classrooms cl ON e.classroom_id = cl.id
         LEFT JOIN instructors i ON c.instructor_id = i.id
+        LEFT JOIN instructors s ON e.supervisor_id = s.id
         LEFT JOIN departments d ON c.department_id = d.id
-        ORDER BY e.exam_date, e.start_time
+        ORDER BY e.exam_date, e.start_time, cl.name
     """
     
     # Sorguyu çalıştır
@@ -71,7 +73,7 @@ def get_exam_by_id(exam_id):
     return results[0]
 
 
-def create_exam(course_id, classroom_id, exam_date, start_time, end_time):
+def create_exam(course_id, classroom_id, exam_date, start_time, end_time, supervisor_id=None):
     """
     Yeni sınav kaydı oluşturur.
     
@@ -81,6 +83,7 @@ def create_exam(course_id, classroom_id, exam_date, start_time, end_time):
         exam_date: Sınav tarihi (YYYY-MM-DD)
         start_time: Başlangıç saati (HH:MM)
         end_time: Bitiş saati (HH:MM)
+        supervisor_id: Gözetmen ID (opsiyonel)
     
     Döndürür:
         exam_id: Oluşturulan sınavın ID'si
@@ -88,10 +91,10 @@ def create_exam(course_id, classroom_id, exam_date, start_time, end_time):
     # Yeni kayıt ekle
     query = """
         INSERT INTO exam_schedule 
-        (course_id, classroom_id, exam_date, start_time, end_time, status) 
-        VALUES (?, ?, ?, ?, ?, 'planlandı')
+        (course_id, classroom_id, supervisor_id, exam_date, start_time, end_time, status) 
+        VALUES (?, ?, ?, ?, ?, ?, 'planlandı')
     """
-    new_id = execute_insert(query, (course_id, classroom_id, exam_date, start_time, end_time))
+    new_id = execute_insert(query, (course_id, classroom_id, supervisor_id, exam_date, start_time, end_time))
     
     return new_id
 

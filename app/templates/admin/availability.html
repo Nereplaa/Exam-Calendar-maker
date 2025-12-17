@@ -8,61 +8,501 @@
         <!-- Sayfa Başlığı -->
         <div class="page-header">
             <h1>📆 Hoca Müsaitlik Yönetimi</h1>
-            <a href="{{ url_for('admin.availability_add') }}" class="btn btn-primary">
-                ➕ Yeni Müsaitlik Ekle
-            </a>
-        </div>
-        
-        <!-- Müsaitlik Tablosu -->
-        <div class="card">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Öğretim Üyesi</th>
-                        <th>Gün</th>
-                        <th>Başlangıç</th>
-                        <th>Bitiş</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in availability %}
-                    <tr>
-                        <td>{{ item.id }}</td>
-                        <td>{{ item.instructor_title }} {{ item.instructor_name }}</td>
-                        <td>{{ item.day_of_week }}</td>
-                        <td>{{ item.start_time }}</td>
-                        <td>{{ item.end_time }}</td>
-                        <td>
-                            {% if item.is_available %}
-                                <span class="badge badge-success">✓ Müsait</span>
-                            {% else %}
-                                <span class="badge badge-danger">✗ Müsait Değil</span>
-                            {% endif %}
-                        </td>
-                        <td class="actions">
-                            <a href="{{ url_for('admin.availability_delete', availability_id=item.id) }}" 
-                               class="btn btn-sm btn-delete"
-                               onclick="return confirm('Bu kaydı silmek istediğinize emin misiniz?')">
-                               🗑️ Sil</a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center">Henüz müsaitlik kaydı eklenmemiş.</td>
-                    </tr>
+            <div class="header-actions">
+                <select id="instructor-filter" class="form-control" onchange="filterByInstructor(this.value)">
+                    <option value="">Tüm Öğretim Üyeleri</option>
+                    {% for instructor in instructors %}
+                    <option value="{{ instructor.id }}" {{ 'selected' if selected_instructor==instructor.id else '' }}>
+                        {{ instructor.title }} {{ instructor.name }}
+                    </option>
                     {% endfor %}
-                </tbody>
-            </table>
+                </select>
+            </div>
         </div>
-        
+
+        <!-- Haftalık Takvim Görünümü -->
+        <div class="card">
+            <div class="availability-calendar">
+                <table class="calendar-table">
+                    <thead>
+                        <tr>
+                            <th class="time-column">Saat</th>
+                            <th>Pazartesi</th>
+                            <th>Salı</th>
+                            <th>Çarşamba</th>
+                            <th>Perşembe</th>
+                            <th>Cuma</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hour in range(9, 18) %}
+                        <tr>
+                            <td class="time-cell">{{ '%02d:00'|format(hour) }} - {{ '%02d:00'|format(hour + 1) }}</td>
+                            {% for day in ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'] %}
+                            <td class="calendar-cell {% if calendar_data.get(day, {}).get(hour) %}has-availability{% endif %}"
+                                data-day="{{ day }}" data-hour="{{ hour }}"
+                                onclick="openAddModal('{{ day }}', {{ hour }})">
+                                {% if calendar_data.get(day, {}).get(hour) %}
+                                {% for item in calendar_data[day][hour] %}
+                                <div class="availability-item {% if item.is_available %}available{% else %}busy{% endif %}"
+                                    onclick="event.stopPropagation(); openEditModal({{ item.id }}, '{{ item.instructor_name }}', '{{ day }}', '{{ item.start_time }}', '{{ item.end_time }}', {{ item.is_available }})">
+                                    <span class="instructor-name">{{ item.instructor_name }}</span>
+                                    <span class="status-icon">{% if item.is_available %}✓{% else %}✗{% endif %}</span>
+                                </div>
+                                {% endfor %}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Renk Açıklaması -->
+            <div class="calendar-legend">
+                <div class="legend-item">
+                    <span class="legend-color available"></span>
+                    <span>Müsait (Sınav yapılabilir)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color busy"></span>
+                    <span>Meşgul (Dersi var)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color empty"></span>
+                    <span>Boş (Tıkla ekle)</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Geri Butonu -->
         <div class="back-link">
             <a href="{{ url_for('auth.dashboard') }}">← Panele Dön</a>
         </div>
     </div>
 </section>
-{% endblock %}
 
+<!-- Müsaitlik Ekleme Modal -->
+<div id="add-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>➕ Yeni Müsaitlik Ekle</h3>
+            <button class="modal-close" onclick="closeModal('add-modal')">&times;</button>
+        </div>
+        <form action="{{ url_for('admin.availability_add') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Öğretim Üyesi</label>
+                    <select name="instructor_id" class="form-control" required>
+                        {% for instructor in instructors %}
+                        <option value="{{ instructor.id }}">{{ instructor.title }} {{ instructor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gün</label>
+                    <select name="day_of_week" id="modal-day" class="form-control" required>
+                        <option value="Pazartesi">Pazartesi</option>
+                        <option value="Salı">Salı</option>
+                        <option value="Çarşamba">Çarşamba</option>
+                        <option value="Perşembe">Perşembe</option>
+                        <option value="Cuma">Cuma</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Başlangıç Saati</label>
+                        <input type="time" name="start_time" id="modal-start" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bitiş Saati</label>
+                        <input type="time" name="end_time" id="modal-end" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Durum</label>
+                    <div class="status-options">
+                        <label class="radio-label">
+                            <input type="radio" name="is_available" value="1" checked>
+                            <span class="radio-text available">✓ Müsait (Sınav yapılabilir)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="is_available" value="0">
+                            <span class="radio-text busy">✗ Meşgul (Dersi var)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('add-modal')">İptal</button>
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Müsaitlik Düzenleme Modal -->
+<div id="edit-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ Müsaitlik Düzenle</h3>
+            <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="edit-info">
+                <div class="info-row">
+                    <span class="info-label">Öğretim Üyesi:</span>
+                    <span id="edit-instructor" class="info-value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Gün:</span>
+                    <span id="edit-day" class="info-value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Saat:</span>
+                    <span id="edit-time" class="info-value"></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Durum:</span>
+                    <span id="edit-status" class="info-value"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a id="edit-delete-btn" href="#" class="btn btn-danger"
+                onclick="return confirm('Bu kaydı silmek istediğinize emin misiniz?')">
+                🗑️ Sil
+            </a>
+            <button type="button" class="btn btn-secondary" onclick="closeModal('edit-modal')">Kapat</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Takvim Stili */
+    .availability-calendar {
+        overflow-x: auto;
+    }
+
+    .calendar-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .calendar-table th,
+    .calendar-table td {
+        border: 1px solid var(--border-color);
+        padding: 0.5rem;
+        text-align: center;
+        vertical-align: top;
+    }
+
+    .calendar-table th {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem;
+    }
+
+    .time-column {
+        width: 120px !important;
+    }
+
+    .time-cell {
+        font-weight: 600;
+        background-color: var(--card-bg);
+        color: var(--text-color);
+        font-size: 0.85rem;
+    }
+
+    .calendar-cell {
+        min-height: 70px;
+        cursor: pointer;
+        transition: all 0.3s;
+        background-color: rgba(255, 255, 255, 0.02);
+        position: relative;
+    }
+
+    .calendar-cell:hover {
+        background-color: rgba(37, 99, 235, 0.15);
+    }
+
+    .calendar-cell.has-availability {
+        padding: 0.25rem;
+    }
+
+    /* Müsaitlik Kartları */
+    .availability-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.4rem 0.6rem;
+        border-radius: 4px;
+        margin: 2px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .availability-item:hover {
+        transform: scale(1.02);
+    }
+
+    .availability-item.available {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+    }
+
+    .availability-item.busy {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+
+    .availability-item .instructor-name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+    }
+
+    .availability-item .status-icon {
+        font-size: 0.9rem;
+    }
+
+    /* Renk Açıklaması */
+    .calendar-legend {
+        display: flex;
+        gap: 2rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background-color: var(--card-bg);
+        border-radius: var(--radius-md);
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+    }
+
+    .legend-color.available {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+
+    .legend-color.busy {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .legend-color.empty {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px dashed var(--border-color);
+    }
+
+    /* Modal Stili */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background-color: var(--dark-bg);
+        border-radius: var(--radius-lg);
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-white);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--text-light);
+        cursor: pointer;
+    }
+
+    .modal-close:hover {
+        color: var(--danger-color);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* Edit Modal Info */
+    .edit-info {
+        background-color: var(--card-bg);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: var(--text-light);
+    }
+
+    .info-value {
+        color: var(--text-white);
+        font-weight: 600;
+    }
+
+    /* Status Options */
+    .status-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .radio-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: var(--radius-md);
+        transition: background 0.3s;
+    }
+
+    .radio-label:hover {
+        background-color: var(--card-bg);
+    }
+
+    .radio-text {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .radio-text.available {
+        background-color: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .radio-text.busy {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    /* Filtre Select */
+    #instructor-filter {
+        width: 300px;
+        background-color: var(--dark-bg);
+        color: var(--text-white);
+        border: 1px solid var(--border-color);
+    }
+</style>
+
+<script>
+    function openAddModal(day, hour) {
+        document.getElementById('modal-day').value = day;
+        document.getElementById('modal-start').value = hour.toString().padStart(2, '0') + ':00';
+        document.getElementById('modal-end').value = (hour + 1).toString().padStart(2, '0') + ':00';
+        document.getElementById('add-modal').classList.add('active');
+    }
+
+    function openEditModal(id, instructor, day, start, end, isAvailable) {
+        document.getElementById('edit-instructor').textContent = instructor;
+        document.getElementById('edit-day').textContent = day;
+        document.getElementById('edit-time').textContent = start + ' - ' + end;
+        document.getElementById('edit-status').innerHTML = isAvailable
+            ? '<span style="color: #22c55e">✓ Müsait</span>'
+            : '<span style="color: #ef4444">✗ Meşgul</span>';
+        document.getElementById('edit-delete-btn').href = '/admin/availability/delete/' + id;
+        document.getElementById('edit-modal').classList.add('active');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+
+    function filterByInstructor(instructorId) {
+        if (instructorId) {
+            window.location.href = '/admin/availability?instructor=' + instructorId;
+        } else {
+            window.location.href = '/admin/availability';
+        }
+    }
+
+    // Modal dışına tıklayınca kapat
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function (e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+    });
+
+    // ESC tuşu ile modal kapat
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal.active').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
+    });
+</script>
+{% endblock %}

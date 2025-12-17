@@ -134,26 +134,33 @@ CREATE TABLE IF NOT EXISTS exam_schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     course_id INTEGER NOT NULL,             -- Hangi dersin sınavı?
     classroom_id INTEGER NOT NULL,          -- Hangi derslikte?
+    supervisor_id INTEGER,                  -- Gözetmen (sınıf sorumlusu)
     exam_date TEXT NOT NULL,                -- Sınav tarihi (2025-01-15 gibi)
     start_time TEXT NOT NULL,               -- Başlangıç saati (09:00 gibi)
     end_time TEXT NOT NULL,                 -- Bitiş saati (10:30 gibi)
     status TEXT DEFAULT 'planlandı',        -- Durum: planlandı, onaylandı, iptal
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses(id),
-    FOREIGN KEY (classroom_id) REFERENCES classrooms(id)
+    FOREIGN KEY (classroom_id) REFERENCES classrooms(id),
+    FOREIGN KEY (supervisor_id) REFERENCES instructors(id)
 );
 
 -- ==============================================
--- TABLO 9: ÖĞRENCİLER (students) - OPSİYONEL
+-- TABLO 9: ÖĞRENCİLER (students)
 -- ==============================================
--- Öğrenci bilgilerini tutar (opsiyonel özellik).
+-- Öğrenci bilgilerini tutar.
 -- ==============================================
 CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     student_no TEXT NOT NULL UNIQUE,        -- Öğrenci numarası
+    tc_no TEXT,                             -- TC Kimlik Numarası
     name TEXT NOT NULL,                     -- Ad Soyad
     email TEXT,                             -- E-posta
+    phone TEXT,                             -- Telefon
+    address TEXT,                           -- Adres
+    birth_date TEXT,                        -- Doğum tarihi
     department_id INTEGER NOT NULL,         -- Bölümü
+    grade INTEGER DEFAULT 1,                -- Sınıf (1,2,3,4)
     user_id INTEGER,                        -- Giriş için kullanıcı hesabı
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id),
