@@ -226,11 +226,14 @@ Uygulama **Greedy (Açgözlü)** algoritma kullanır:
 
 ---
 
-##  Ekip
+## 👥 Ekip
 
-| İsim | Görev |
-|------|-------|
-| Alperen | Full Stack Geliştirme |
+| İsim | Öğrenci No | Görev |
+|------|------------|-------|
+| Alperen Yağmur | 250502015 | Full Stack Geliştirme (Backend, Frontend, Veritabanı, Planlama Algoritması) |
+| Simanur Gürsoy | 230502027 | Proje Dokümantasyonu, Raporlama, Gereksinim Analizi |
+| Ebrar İkbal Karakuzu | 230502028 | Mimari Tasarım, Diyagramlar, Kullanıcı Arayüzü Tasarımı |
+| Utku Daşar | 240502061 | Test ve Doğrulama, Yazılım Testi, Kalite Kontrol |
 
 ---
 
