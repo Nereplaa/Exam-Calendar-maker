@@ -1,4 +1,4 @@
-# 🎓 Üniversite Sınav Programı Hazırlama Uygulaması
+# 🎓 Üniversite Sınav Programı Hazırlama Uygulaması 🎓
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)
