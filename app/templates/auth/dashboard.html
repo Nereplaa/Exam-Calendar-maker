@@ -201,35 +201,59 @@
 
             <!-- Hoca Menüsü -->
             {% if user.role == 'hoca' %}
-            <div class="actions-grid">
-                <a href="/instructor/availability" class="action-card">
-                    <div class="action-icon">📆</div>
-                    <h3>Müsaitlik</h3>
-                    <p>Müsait günleri belirle</p>
-                </a>
+            <div class="actions-layout">
+                <div class="actions-left">
+                    <div class="actions-grid">
+                        <a href="/instructor/availability" class="action-card">
+                            <div class="action-icon">📆</div>
+                            <h3>Müsaitlik</h3>
+                            <p>Müsait günleri belirle</p>
+                        </a>
 
-                <a href="/instructor/courses" class="action-card">
-                    <div class="action-icon">📖</div>
-                    <h3>Derslerim</h3>
-                    <p>Verdiğim dersleri gör</p>
-                </a>
+                        <a href="/instructor/courses" class="action-card">
+                            <div class="action-icon">📖</div>
+                            <h3>Derslerim</h3>
+                            <p>Verdiğim dersleri gör</p>
+                        </a>
 
-                <a href="/schedule/view" class="action-card">
-                    <div class="action-icon">📅</div>
-                    <h3>Sınav Programı</h3>
-                    <p>Sınav tarihlerini gör</p>
-                </a>
+                        <a href="/schedule/view" class="action-card">
+                            <div class="action-icon">📅</div>
+                            <h3>Tüm Program</h3>
+                            <p>Genel sınav programı</p>
+                        </a>
+                    </div>
+                </div>
+                <div class="actions-right">
+                    <a href="/schedule/my-exams" class="action-card-large action-success">
+                        <div class="action-icon-large">🎯</div>
+                        <h3>Sınav Takvimim</h3>
+                        <p>Derslerimin ve gözetmenlik görevlerimin sınav programı</p>
+                        <div class="action-arrow">→</div>
+                    </a>
+                </div>
             </div>
             {% endif %}
 
             <!-- Öğrenci Menüsü -->
             {% if user.role == 'ogrenci' %}
-            <div class="actions-grid">
-                <a href="/schedule/view" class="action-card">
-                    <div class="action-icon">📅</div>
-                    <h3>Sınav Programı</h3>
-                    <p>Sınav tarihlerini gör</p>
-                </a>
+            <div class="actions-layout">
+                <div class="actions-left">
+                    <div class="actions-grid">
+                        <a href="/schedule/view" class="action-card">
+                            <div class="action-icon">📅</div>
+                            <h3>Tüm Program</h3>
+                            <p>Genel sınav programı</p>
+                        </a>
+                    </div>
+                </div>
+                <div class="actions-right">
+                    <a href="/schedule/my-exams" class="action-card-large action-success">
+                        <div class="action-icon-large">🎯</div>
+                        <h3>Sınav Takvimim</h3>
+                        <p>Kayıtlı olduğum derslerin sınav programı</p>
+                        <div class="action-arrow">→</div>
+                    </a>
+                </div>
             </div>
             {% endif %}
         </div>

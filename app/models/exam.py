@@ -256,3 +256,109 @@ def get_exams_by_department(department_id):
     
     return results
 
+
+def get_exams_by_student(student_id):
+    """
+    Öğrencinin kayıtlı olduğu derslerin sınavlarını getirir.
+    Öğrenci giriş yaptığında kendi sınav takvimini görmesi için.
+    
+    Parametreler:
+        student_id: Öğrenci ID
+    
+    Döndürür:
+        exams: Öğrencinin sınav listesi
+    """
+    query = """
+        SELECT e.*, 
+               c.code as course_code, 
+               c.name as course_name,
+               c.student_count,
+               c.exam_duration,
+               cl.name as classroom_name,
+               cl.capacity as classroom_capacity,
+               i.name as instructor_name,
+               d.name as department_name,
+               s.name as supervisor_name
+        FROM exam_schedule e
+        LEFT JOIN courses c ON e.course_id = c.id
+        LEFT JOIN classrooms cl ON e.classroom_id = cl.id
+        LEFT JOIN instructors i ON c.instructor_id = i.id
+        LEFT JOIN instructors s ON e.supervisor_id = s.id
+        LEFT JOIN departments d ON c.department_id = d.id
+        INNER JOIN student_courses sc ON sc.course_id = c.id
+        WHERE sc.student_id = ?
+        ORDER BY e.exam_date, e.start_time
+    """
+    
+    results = execute_query(query, (student_id,))
+    
+    return results
+
+
+def get_exams_by_instructor(instructor_id):
+    """
+    Öğretim üyesinin verdiği derslerin sınavlarını getirir.
+    Hoca giriş yaptığında kendi sınav takvimini görmesi için.
+    
+    Parametreler:
+        instructor_id: Öğretim üyesi ID
+    
+    Döndürür:
+        exams: Hocanın sınav listesi
+    """
+    query = """
+        SELECT e.*, 
+               c.code as course_code, 
+               c.name as course_name,
+               c.student_count,
+               c.exam_duration,
+               cl.name as classroom_name,
+               cl.capacity as classroom_capacity,
+               i.name as instructor_name,
+               d.name as department_name,
+               s.name as supervisor_name
+        FROM exam_schedule e
+        LEFT JOIN courses c ON e.course_id = c.id
+        LEFT JOIN classrooms cl ON e.classroom_id = cl.id
+        LEFT JOIN instructors i ON c.instructor_id = i.id
+        LEFT JOIN instructors s ON e.supervisor_id = s.id
+        LEFT JOIN departments d ON c.department_id = d.id
+        WHERE c.instructor_id = ?
+        ORDER BY e.exam_date, e.start_time
+    """
+    
+    results = execute_query(query, (instructor_id,))
+    
+    return results
+
+
+def get_supervised_exams_by_instructor(instructor_id):
+    """
+    Öğretim üyesinin gözetmen olarak atandığı sınavları getirir.
+    
+    Parametreler:
+        instructor_id: Öğretim üyesi ID
+    
+    Döndürür:
+        exams: Gözetmenlik sınav listesi
+    """
+    query = """
+        SELECT e.*, 
+               c.code as course_code, 
+               c.name as course_name,
+               c.student_count,
+               cl.name as classroom_name,
+               i.name as instructor_name,
+               d.name as department_name
+        FROM exam_schedule e
+        LEFT JOIN courses c ON e.course_id = c.id
+        LEFT JOIN classrooms cl ON e.classroom_id = cl.id
+        LEFT JOIN instructors i ON c.instructor_id = i.id
+        LEFT JOIN departments d ON c.department_id = d.id
+        WHERE e.supervisor_id = ?
+        ORDER BY e.exam_date, e.start_time
+    """
+    
+    results = execute_query(query, (instructor_id,))
+    
+    return results

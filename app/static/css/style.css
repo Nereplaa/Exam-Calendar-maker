@@ -682,9 +682,20 @@ body {
     box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
 }
 
-.action-card-large:hover {
+.action-card-large.action-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: var(--text-white);
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+.action-card-large.action-primary:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
+}
+
+.action-card-large.action-success:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
 }
 
 .action-icon-large {
@@ -1151,4 +1162,27 @@ body {
 
 .btn-excel:hover {
     background-color: #16a34a;
+}
+
+/* ==============================================
+   FORM SECTION STİLLERİ
+   ============================================== */
+.form-section {
+    margin: var(--spacing-xl) 0;
+    padding: var(--spacing-lg);
+    background-color: var(--bg-color);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary-color);
+}
+
+.form-section-title {
+    font-size: 1.1rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+}
+
+.form-section-desc {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin-bottom: var(--spacing-md);
 }

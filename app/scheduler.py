@@ -19,13 +19,19 @@
 
 from app.database import execute_query
 from app.models.exam import create_exam, delete_all_exams, check_classroom_conflict, check_instructor_conflict
-from app.models.classroom import get_available_classrooms, get_computer_classrooms
+from app.models.classroom import get_available_classrooms, get_computer_classrooms, get_all_classrooms
 from app.models.course import get_courses_with_exam
 from app.models.availability import check_instructor_available
 
 
 # Her gün için hangi bölümün sınavları yapıldığını takip et
 daily_department_exams = {}
+
+def clear_exam_schedule():
+    """
+    Sınav programını temizler.
+    """
+    delete_all_exams()
 
 
 def generate_exam_schedule(start_date, end_date):
@@ -274,31 +280,98 @@ def get_day_exam_count(exam_date):
     return results[0]['count']
 
 
+def get_nearby_classrooms(classroom_id):
+    """
+    Bir dersliğin yakın dersliklerini öncelik sırasına göre döndürür.
+    classroom_proximity tablosundan veri çeker.
+    
+    Parametreler:
+        classroom_id: Ana derslik ID'si
+    
+    Döndürür:
+        nearby_rooms: Yakın derslik listesi (öncelik sırasına göre)
+    """
+    query = """
+        SELECT c.id, c.name, c.capacity, c.block, c.has_computer, c.is_available
+        FROM classrooms c
+        INNER JOIN classroom_proximity cp ON c.id = cp.nearby_classroom_id
+        WHERE cp.classroom_id = ?
+        ORDER BY cp.priority ASC
+    """
+    return execute_query(query, (classroom_id,))
+
+
 def find_available_classrooms(classrooms, exam_date, start_time, end_time, needed_capacity):
     """
     Belirtilen kapasiteyi karşılayan müsait derslik(ler)i bulur.
-    Gerekirse birden fazla derslik birleştirir.
+    Yakınlık bilgisini kullanarak akıllı dağıtım yapar.
+    
+    Algoritma:
+    1. Önce tek başına yeterli kapasiteli derslik ara
+    2. Bulunamazsa, en büyük dersliği seç ve yakınlarından tamamla
+    3. Yakınlık yoksa, kapasiteye göre birleştir
     
     Döndürür:
         rooms: Uygun derslik listesi veya None
     """
     available = []
-    total_capacity = 0
     
-    # Önce tek bir uygun derslik ara
+    # Önce müsait derslikleri bul
     for room in classrooms:
         room_busy = check_classroom_conflict(room['id'], exam_date, start_time, end_time)
         if not room_busy:
+            # Tek derslik yeterli mi?
             if room['capacity'] >= needed_capacity:
-                return [room]  # Tek derslik yeterli
+                return [room]  # Tek derslik yeterli, hemen döndür
             available.append(room)
-            total_capacity += room['capacity']
     
-    # Tek derslik bulunamadı, birden fazla derslik birleştir
-    if total_capacity >= needed_capacity:
-        # Kapasiteye göre sırala (büyükten küçüğe)
-        available.sort(key=lambda x: x['capacity'], reverse=True)
+    # Tek derslik yeterli değil - yakınlık bazlı birleştirme dene
+    if not available:
+        return None
+    
+    # Kapasiteye göre sırala (büyükten küçüğe)
+    available.sort(key=lambda x: x['capacity'], reverse=True)
+    
+    # Her büyük derslik için yakınlık bazlı birleştirme dene
+    for base_room in available:
+        selected = [base_room]
+        current_capacity = base_room['capacity']
+        used_ids = {base_room['id']}
         
+        # Yakın derslikleri al
+        nearby_rooms = get_nearby_classrooms(base_room['id'])
+        
+        # Yakın ve müsait derslikleri ekle
+        for nearby in nearby_rooms:
+            if current_capacity >= needed_capacity:
+                break  # Yeterli kapasite sağlandı
+            
+            if nearby['id'] in used_ids:
+                continue  # Zaten eklendi
+            
+            # Yakın derslik müsait mi?
+            nearby_busy = check_classroom_conflict(nearby['id'], exam_date, start_time, end_time)
+            if not nearby_busy:
+                # Derslik bilgisini tam olarak al
+                selected.append({
+                    'id': nearby['id'],
+                    'name': nearby['name'],
+                    'capacity': nearby['capacity'],
+                    'block': nearby['block'],
+                    'has_computer': nearby['has_computer'],
+                    'is_available': nearby['is_available']
+                })
+                current_capacity += nearby['capacity']
+                used_ids.add(nearby['id'])
+        
+        # Yakınlık ile yeterli kapasite sağlandı mı?
+        if current_capacity >= needed_capacity:
+            return selected
+    
+    # Yakınlık ile bulunamadı, genel birleştirme dene
+    total_capacity = sum(room['capacity'] for room in available)
+    
+    if total_capacity >= needed_capacity:
         selected = []
         current_capacity = 0
         
@@ -309,6 +382,7 @@ def find_available_classrooms(classrooms, exam_date, start_time, end_time, neede
             if current_capacity >= needed_capacity:
                 return selected
     
+    # Hiçbir kombinasyon yeterli değil
     return None
 
 
@@ -387,67 +461,133 @@ def find_available_supervisors(day_name, exam_date, start_time, end_time, exclud
     return available
 
 
-def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_slots):
+def find_best_exam_day(start_date, end_date):
+    """
+    Ortak sınavlar için en uygun günü bulur (en çok hocanın müsait olduğu gün).
+    """
+    from datetime import datetime, timedelta
+    
+    current_date = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    days_tr = {0: 'Pazartesi', 1: 'Salı', 2: 'Çarşamba', 3: 'Perşembe', 4: 'Cuma', 5: 'Cumartesi', 6: 'Pazar'}
+    
+    best_day = None
+    max_availability = -1
+    
+    while current_date <= end:
+        if current_date.weekday() < 5:  # Sadece hafta içi
+            day_name = days_tr[current_date.weekday()]
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            # O gün müsait olan hoca sayısını bul
+            query = """
+                SELECT COUNT(DISTINCT instructor_id) as count 
+                FROM instructor_availability 
+                WHERE day_of_week = ? AND is_available = 1
+            """
+            result = execute_query(query, (day_name,))
+            count = result[0]['count']
+            
+            if count > max_availability:
+                max_availability = count
+                best_day = date_str
+        
+        current_date += timedelta(days=1)
+    
+    return best_day
+
+def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_slots, common_exam_day=None, force_common_day=False):
     """
     Bir dersin sınavını yerleştirir.
-    Birden fazla sınıf gerekirse farklı gözetmenler atar.
+    force_common_day=True ise SADECE ortak sınav gününe yerleştirir.
+    Birden fazla sınıf gerekirse ve gözetmen yetmezse bir gözetmene birden fazla sınıf verebilir.
+    Özel derslik ataması varsa (special_classroom_id) sadece o dersliği kullanır.
     """
     course_id = course['id']
+    course_code = course['code']
     student_count = course['student_count']
-    needs_computer = course['needs_computer']
+    requires_computer = 1 if 'LAB' in course_code else 0
+    duration = course['exam_duration'] if course['exam_duration'] else 60
     instructor_id = course['instructor_id']
     department_id = course['department_id']
-    exam_duration = course['exam_duration'] if course['exam_duration'] else 60
     
-    # Hangi derslikleri kullanacağız?
-    if needs_computer:
+    # Özel derslik ataması var mı?
+    # sqlite3.Row .get() desteklemez, try/except kullanıyoruz
+    try:
+        special_classroom_id = course['special_classroom_id']
+    except (KeyError, IndexError):
+        special_classroom_id = None
+    
+    # Uygun derslik listesi
+    if special_classroom_id:
+        # Özel derslik atanmışsa sadece onu kullan
+        from app.models.classroom import get_classroom_by_id
+        special_room = get_classroom_by_id(special_classroom_id)
+        if special_room:
+            available_rooms = [special_room]
+        else:
+            available_rooms = []
+    elif requires_computer:
         available_rooms = computer_classrooms
     else:
         available_rooms = classrooms
     
-    # Günlere göre sınav sayısını takip et ve dengeli dağıt
-    sorted_days = sorted(exam_days, key=lambda x: get_day_exam_count(x[0]))
-    
-    # Her gün için dene
-    for exam_date, day_name in sorted_days:
+    # Günleri filtrele
+    if force_common_day and common_exam_day:
+        # Ortak sınav gününü bul ve sadece onu kullan
+        target_days = [d for d in exam_days if d == common_exam_day]
+    elif common_exam_day:
+        # Normal sınavlar ortak sınav gününe KONMAZ
+        target_days = [d for d in exam_days if d != common_exam_day]
+    else:
+        target_days = exam_days
         
-        # Her saat dilimi için dene
+    # Günleri sınav yoğunluğuna göre sırala (yoğundan aza değil, azdan çoğa)
+    # sorted_days = sorted(target_days, key=lambda x: get_day_exam_count(x[0]))
+    # Basitlik için sıralamayı şimdilik pass geçelim veya mevcut sırayı kullanalım
+    
+    for exam_date in target_days:
+        # Tarihten gün adını bul
+        from datetime import datetime
+        dt = datetime.strptime(exam_date, '%Y-%m-%d')
+        days = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar']
+        day_name = days[dt.weekday()]
+        
+        # Bölüm için ardışık sınav kontrolü
+        # Ortak sınav gününde bu kuralı esnetebiliriz çünkü tek o gün var
+        if not force_common_day:
+            has_dept_conflict = False
+            for start_time, _ in time_slots:
+                if check_department_consecutive(department_id, exam_date, start_time):
+                    has_dept_conflict = True
+                    break
+            if has_dept_conflict:
+                continue
+        
         for start_time, slot_end_time in time_slots:
-            
-            # Sınav süresine göre bitiş saatini hesapla
-            actual_end_time = calculate_end_time(start_time, exam_duration)
+            # Gerçek bitiş saati
+            actual_end_time = calculate_end_time(start_time, duration)
             
             # Bitiş saati 18:00'ı geçiyorsa bu slotu atla
             if actual_end_time > '18:00':
                 continue
             
-            # Hocanın bu günde bu saatte müsait olup olmadığını kontrol et
+            # Hoca müsait mi? (Dersi veren hoca)
             is_instructor_free = check_instructor_available(instructor_id, day_name, start_time, actual_end_time)
-            
             if not is_instructor_free:
                 continue
             
-            # Hoca bu saatte başka sınavda mı?
+            # Hocanın başka sınavı/görevi var mı?
             instructor_busy = check_instructor_conflict(instructor_id, exam_date, start_time, actual_end_time)
-            
             if instructor_busy:
                 continue
-            
-            # Hoca gözetmen olarak başka sınavda mı?
+                
             supervisor_busy = check_supervisor_conflict(instructor_id, exam_date, start_time, actual_end_time)
-            
             if supervisor_busy:
                 continue
-            
-            # Aynı bölüm ardışık sınav kontrolü
-            dept_consecutive = check_department_consecutive(department_id, exam_date, start_time)
-            
-            if dept_consecutive:
-                continue
-            
+                
             # Öğrenci çakışması var mı?
             student_conflict = check_student_conflict(course_id, exam_date, start_time, actual_end_time)
-            
             if student_conflict:
                 continue
             
@@ -457,28 +597,39 @@ def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_s
             if rooms is None:
                 continue
             
-            # Birden fazla derslik varsa yeterli gözetmen var mı kontrol et
-            needed_supervisors = len(rooms) - 1  # İlk sınıf dersin hocası
+            needed_supervisors = len(rooms)
             
-            if needed_supervisors > 0:
-                # Diğer sınıflar için gözetmen bul
-                additional_supervisors = find_available_supervisors(
-                    day_name, exam_date, start_time, actual_end_time, 
-                    exclude_ids=[instructor_id]
-                )
-                
-                if len(additional_supervisors) < needed_supervisors:
-                    continue  # Yeterli gözetmen yok
+            # Gözetmen bul (dersin hocası HARİÇ)
+            available_supervisors = find_available_supervisors(
+                day_name, exam_date, start_time, actual_end_time, 
+                exclude_ids=[instructor_id]
+            )
             
-            # Her şey uygun! Sınavı yerleştir
-            for i, room in enumerate(rooms):
-                if i == 0:
-                    # İlk sınıf - dersin öğretmeni gözetmen
-                    supervisor = instructor_id
+            # Çoklu gözetmen mantığı (Multi-room supervision)
+            final_supervisors = []
+            
+            if len(available_supervisors) == 0:
+                continue # Hiç kimse yok!
+            
+            # Mevcut gözetmenleri sırayla ata
+            # Eğer yetmezse, mevcutları tekrar kullan (komşu sınıflar için)
+            sup_idx = 0
+            for i in range(needed_supervisors):
+                if sup_idx < len(available_supervisors):
+                    final_supervisors.append(available_supervisors[sup_idx])
+                    sup_idx += 1
                 else:
-                    # Diğer sınıflar - farklı gözetmenler
-                    supervisor = additional_supervisors[i - 1]
-                
+                    # Gözetmen bitti, son atanan kişiyi tekrar kullan
+                    # Bu kişi birden fazla sınıfa bakacak
+                    final_supervisors.append(final_supervisors[-1])
+            
+            # Kontrol: Her şey tamam mı?
+            if len(final_supervisors) < needed_supervisors:
+                continue
+            
+            # Sınavı yerleştir
+            for i, room in enumerate(rooms):
+                supervisor = final_supervisors[i]
                 create_exam(course_id, room['id'], exam_date, start_time, actual_end_time, supervisor)
             
             # Bölüm programını güncelle
@@ -486,8 +637,82 @@ def place_course_exam(course, classrooms, computer_classrooms, exam_days, time_s
             
             return True
     
-    # Hiçbir slot uygun değildi
     return False
+
+
+def generate_exam_schedule(start_date, end_date):
+    """
+    Sınav takvimini oluşturur.
+    SEC908 gibi ortak dersleri özel bir güne yerleştirir.
+    Ortak sınav günü: Mümkün olduğunca çok hocanın müsait olduğu gün seçilir.
+    O güne sadece ortak sınavlar konur.
+    """
+    # Önce mevcut programı temizle
+    clear_exam_schedule()
+    
+    # Tarih aralığındaki günleri bul
+    from datetime import datetime, timedelta
+    date_list = []
+    current_date = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    while current_date <= end:
+        if current_date.weekday() < 5:  # Sadece hafta içi
+            date_list.append(current_date.strftime('%Y-%m-%d'))
+        current_date += timedelta(days=1)
+    
+    # Zaman dilimleri
+    time_slots = [
+        ('09:00', '10:30'),
+        ('11:00', '12:30'),
+        ('13:30', '15:00'),
+        ('15:30', '17:00')
+    ]
+    
+    # Derslikleri getir
+    classrooms = get_all_classrooms()
+    normal_classrooms = [c for c in classrooms if c['has_computer'] == 0]
+    computer_classrooms = [c for c in classrooms if c['has_computer'] == 1]
+    
+    # Dersleri getir
+    courses = execute_query("SELECT * FROM courses ORDER BY student_count DESC")
+    
+    # Dersleri ayır: Ortak (>100) ve Normal
+    common_courses = [c for c in courses if c['student_count'] >= 100]
+    regular_courses = [c for c in courses if c['student_count'] < 100]
+    
+    # Ortak sınav gününü bul
+    common_exam_day = None
+    if common_courses:
+        common_exam_day = find_best_exam_day(start_date, end_date)
+        print(f"Ortak sinav gunu olarak belirlendi: {common_exam_day}")
+    
+    success_count = 0
+    fail_count = 0
+    
+    # 1. ÖNCE ORTAK DERSLERİ YERLEŞTİR (Sadece ortak güne)
+    for course in common_courses:
+        print(f"Ortak ders yerlestiriliyor: {course['code']}")
+        if place_course_exam(course, normal_classrooms, computer_classrooms, date_list, time_slots, common_exam_day, force_common_day=True):
+            success_count += 1
+            print(f"   [OK] Yerlestirildi")
+        else:
+            fail_count += 1
+            print(f"   [X] BASARISIZ! Ortak ders {course['code']} yerlestirilemedi!")
+            
+    # 2. SONRA DİĞER DERSLERİ YERLEŞTİR (Ortak gün HARİÇ)
+    for course in regular_courses:
+        if place_course_exam(course, normal_classrooms, computer_classrooms, date_list, time_slots, common_exam_day, force_common_day=False):
+            success_count += 1
+        else:
+            fail_count += 1
+            print(f"UYARI: Ders {course['code']} yerlestirilemedi!")
+
+    return {
+        'total_courses': len(courses),
+        'placed_count': success_count,
+        'failed_count': fail_count
+    }
 
 
 def get_schedule_statistics():

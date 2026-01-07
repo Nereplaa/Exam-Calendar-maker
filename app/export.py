@@ -5,6 +5,7 @@
 # formatlarında dışa aktarma işlemlerini yapar.
 # Takvim Formatı: Tarihler sütun, saatler satır
 # Her bölüm için ayrı tablo
+# PDF: Yer imleri ve içindekiler ile kolay navigasyon
 # ==============================================
 
 import os
@@ -16,9 +17,15 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
+    KeepTogether, BaseDocTemplate, PageTemplate, Frame, NextPageTemplate
+)
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus.tableofcontents import TableOfContents
+from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Excel oluşturma için
 from openpyxl import Workbook
@@ -153,10 +160,42 @@ def convert_turkish(text, font_registered):
     return text
 
 
+class BookmarkedDocTemplate(BaseDocTemplate):
+    """
+    Yer imleri (bookmarks) destekleyen PDF şablonu.
+    Excel'deki sheet navigasyonu gibi bölümler arası gezinme sağlar.
+    """
+    def __init__(self, filename, **kwargs):
+        self.bookmarks = []
+        BaseDocTemplate.__init__(self, filename, **kwargs)
+    
+    def afterFlowable(self, flowable):
+        """Her flowable sonrası yer imi ekle."""
+        if hasattr(flowable, '_bookmarkName'):
+            # PDF'e yer imi ekle
+            self.canv.bookmarkPage(flowable._bookmarkName)
+            self.canv.addOutlineEntry(
+                flowable._bookmarkTitle,
+                flowable._bookmarkName,
+                level=flowable._bookmarkLevel
+            )
+
+
+class BookmarkedParagraph(Paragraph):
+    """Yer imi destekleyen Paragraph sınıfı."""
+    def __init__(self, text, style, bookmarkName=None, bookmarkTitle=None, level=0):
+        Paragraph.__init__(self, text, style)
+        if bookmarkName:
+            self._bookmarkName = bookmarkName
+            self._bookmarkTitle = bookmarkTitle or text
+            self._bookmarkLevel = level
+
+
 def export_to_pdf():
     """
     Sınav programını takvim formatında PDF olarak dışa aktarır.
-    Her bölüm için ayrı tablo.
+    Her bölüm için ayrı sayfa ve yer imi ile kolay navigasyon.
+    Excel'deki sheet yapısı gibi sol panelden bölümler arası geçiş yapılabilir.
     """
     # Dosya oluştur
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -166,64 +205,262 @@ def export_to_pdf():
     # Font kaydet
     font_name, font_name_bold, font_registered = register_fonts()
     
-    # PDF belgesi oluştur
-    doc = SimpleDocTemplate(
+    # PDF belgesi oluştur (Yer imli şablon)
+    doc = BookmarkedDocTemplate(
         file_path,
         pagesize=landscape(A4),
         rightMargin=0.5*cm,
         leftMargin=0.5*cm,
-        topMargin=0.5*cm,
-        bottomMargin=0.5*cm
+        topMargin=1.2*cm,
+        bottomMargin=1*cm
     )
+    
+    # Sayfa şablonu
+    frame = Frame(
+        doc.leftMargin, doc.bottomMargin,
+        doc.width, doc.height,
+        id='normal'
+    )
+    
+    def add_page_header_footer(canvas, doc):
+        """Her sayfaya başlık ve sayfa numarası ekle."""
+        canvas.saveState()
+        
+        # Üst başlık çizgisi
+        canvas.setStrokeColor(colors.HexColor('#2563eb'))
+        canvas.setLineWidth(2)
+        canvas.line(0.5*cm, landscape(A4)[1] - 0.8*cm, landscape(A4)[0] - 0.5*cm, landscape(A4)[1] - 0.8*cm)
+        
+        # Üst başlık metni
+        canvas.setFont(font_name_bold, 10)
+        canvas.setFillColor(colors.HexColor('#2563eb'))
+        canvas.drawString(0.7*cm, landscape(A4)[1] - 0.6*cm, "SINAV PROGRAMI")
+        
+        # Tarih (sağ üst)
+        today = datetime.now().strftime('%d.%m.%Y')
+        canvas.setFont(font_name, 8)
+        canvas.setFillColor(colors.HexColor('#666666'))
+        canvas.drawRightString(landscape(A4)[0] - 0.7*cm, landscape(A4)[1] - 0.6*cm, f"Tarih: {today}")
+        
+        # Alt sayfa numarası
+        canvas.setFont(font_name, 9)
+        canvas.setFillColor(colors.HexColor('#666666'))
+        page_num = canvas.getPageNumber()
+        canvas.drawCentredString(landscape(A4)[0] / 2, 0.5*cm, f"Sayfa {page_num}")
+        
+        # Alt çizgi
+        canvas.setStrokeColor(colors.HexColor('#e5e7eb'))
+        canvas.setLineWidth(1)
+        canvas.line(0.5*cm, 0.8*cm, landscape(A4)[0] - 0.5*cm, 0.8*cm)
+        
+        canvas.restoreState()
+    
+    template = PageTemplate(id='main', frames=frame, onPage=add_page_header_footer)
+    doc.addPageTemplates([template])
     
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle(
-        'CustomTitle',
+    # Kapak başlık stili
+    cover_title_style = ParagraphStyle(
+        'CoverTitle',
         parent=styles['Heading1'],
         fontName=font_name_bold,
-        fontSize=16,
-        alignment=1,
-        spaceAfter=10
+        fontSize=28,
+        alignment=TA_CENTER,
+        spaceAfter=20,
+        textColor=colors.HexColor('#1e40af')
     )
     
+    cover_subtitle_style = ParagraphStyle(
+        'CoverSubtitle',
+        parent=styles['Normal'],
+        fontName=font_name,
+        fontSize=14,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor('#666666'),
+        spaceAfter=40
+    )
+    
+    # İçindekiler stili
+    toc_title_style = ParagraphStyle(
+        'TOCTitle',
+        parent=styles['Heading1'],
+        fontName=font_name_bold,
+        fontSize=18,
+        alignment=TA_CENTER,
+        spaceAfter=20,
+        textColor=colors.HexColor('#1e40af')
+    )
+    
+    toc_item_style = ParagraphStyle(
+        'TOCItem',
+        parent=styles['Normal'],
+        fontName=font_name,
+        fontSize=11,
+        leftIndent=20,
+        spaceBefore=8,
+        spaceAfter=8,
+        textColor=colors.HexColor('#2563eb')
+    )
+    
+    # Bölüm başlık stili
     dept_style = ParagraphStyle(
         'DeptTitle',
         parent=styles['Heading2'],
         fontName=font_name_bold,
-        fontSize=12,
-        textColor=colors.HexColor('#2563eb'),
-        spaceAfter=5,
-        spaceBefore=10
+        fontSize=14,
+        textColor=colors.HexColor('#1e40af'),
+        spaceAfter=15,
+        spaceBefore=5,
+        borderColor=colors.HexColor('#2563eb'),
+        borderWidth=1,
+        borderPadding=5
     )
     
     elements = []
     
-    # Ana başlık
-    title = Paragraph("SINAV PROGRAMI", title_style)
-    elements.append(title)
-    
-    today = datetime.now().strftime('%d.%m.%Y')
-    subtitle = Paragraph(f"Olusturulma Tarihi: {today}", styles['Normal'])
-    elements.append(subtitle)
-    elements.append(Spacer(1, 0.5*cm))
-    
     # Bölümleri al
     departments = get_departments()
+    dept_with_exams = []
     
+    # Önce sınavı olan bölümleri belirle
     for dept in departments:
+        exams = get_exams_by_department(dept['id'])
+        if len(exams) > 0:
+            dept_with_exams.append({
+                'id': dept['id'],
+                'name': dept['name'],
+                'exam_count': len(exams)
+            })
+    
+    if not dept_with_exams:
+        # Sınav yoksa basit PDF
+        elements.append(Paragraph("Henuz planlanmis sinav bulunmamaktadir.", styles['Normal']))
+        doc.build(elements)
+        return file_path
+    
+    # =====================
+    # KAPAK SAYFASI
+    # =====================
+    elements.append(Spacer(1, 4*cm))
+    
+    cover_title = BookmarkedParagraph(
+        "SINAV PROGRAMI",
+        cover_title_style,
+        bookmarkName="cover",
+        bookmarkTitle="Kapak",
+        level=0
+    )
+    elements.append(cover_title)
+    
+    today = datetime.now().strftime('%d.%m.%Y')
+    semester_info = "2024-2025 Akademik Yili"
+    elements.append(Paragraph(semester_info, cover_subtitle_style))
+    elements.append(Paragraph(f"Olusturulma Tarihi: {today}", cover_subtitle_style))
+    
+    elements.append(Spacer(1, 2*cm))
+    
+    # Özet istatistikler
+    total_exams = sum(d['exam_count'] for d in dept_with_exams)
+    stats_data = [
+        ['ISTATISTIKLER', ''],
+        ['Toplam Bolum Sayisi', str(len(dept_with_exams))],
+        ['Toplam Sinav Sayisi', str(total_exams)],
+    ]
+    
+    stats_table = Table(stats_data, colWidths=[8*cm, 4*cm])
+    stats_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), font_name_bold),
+        ('FONTNAME', (0, 1), (-1, -1), font_name),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('SPAN', (0, 0), (1, 0)),
+    ]))
+    elements.append(stats_table)
+    
+    elements.append(PageBreak())
+    
+    # =====================
+    # İÇİNDEKİLER SAYFASI
+    # =====================
+    toc_title = BookmarkedParagraph(
+        "ICINDEKILER",
+        toc_title_style,
+        bookmarkName="toc",
+        bookmarkTitle="Icindekiler",
+        level=0
+    )
+    elements.append(toc_title)
+    elements.append(Spacer(1, 0.5*cm))
+    
+    # İçindekiler tablosu
+    toc_data = [['No', 'Bolum Adi', 'Sinav Sayisi']]
+    for i, dept in enumerate(dept_with_exams, 1):
+        dept_name_clean = convert_turkish(dept['name'], font_registered)
+        toc_data.append([str(i), dept_name_clean, str(dept['exam_count'])])
+    
+    toc_table = Table(toc_data, colWidths=[1.5*cm, 16*cm, 3*cm])
+    toc_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), font_name_bold),
+        ('FONTNAME', (0, 1), (-1, -1), font_name),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+    ]))
+    elements.append(toc_table)
+    
+    elements.append(Spacer(1, 1*cm))
+    
+    # Navigasyon ipucu
+    nav_hint = Paragraph(
+        "<i>Not: PDF goruntuleyicinizde sol panelden (Yer Imleri/Bookmarks) bolumler arasi hizli gecis yapabilirsiniz.</i>",
+        ParagraphStyle('NavHint', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#666666'), alignment=TA_CENTER)
+    )
+    elements.append(nav_hint)
+    
+    elements.append(PageBreak())
+    
+    # =====================
+    # BÖLÜM SAYFALARI
+    # =====================
+    for idx, dept in enumerate(dept_with_exams):
         dept_id = dept['id']
         dept_name = convert_turkish(dept['name'], font_registered)
         
         # Bu bölümün sınavlarını al
         exams = get_exams_by_department(dept_id)
         
-        if len(exams) == 0:
-            continue
-        
-        # Bölüm başlığı
-        dept_title = Paragraph(f"📚 {dept_name}", dept_style)
+        # Bölüm başlığı (yer imli)
+        bookmark_name = f"dept_{dept_id}"
+        dept_title = BookmarkedParagraph(
+            f"{idx + 1}. {dept_name}",
+            dept_style,
+            bookmarkName=bookmark_name,
+            bookmarkTitle=dept_name,
+            level=1
+        )
         elements.append(dept_title)
+        
+        # Bölüm bilgisi
+        dept_info = Paragraph(
+            f"<font color='#666666'>Toplam {len(exams)} sinav</font>",
+            ParagraphStyle('DeptInfo', parent=styles['Normal'], fontSize=9, spaceAfter=10)
+        )
+        elements.append(dept_info)
         
         # Takvim formatına dönüştür
         dates, time_slots, calendar_data = organize_exams_as_calendar(exams)
@@ -232,7 +469,6 @@ def export_to_pdf():
             continue
         
         # Tablo verisi oluştur
-        # İlk satır: boş + tarihler
         header_row = ['Saat'] + dates
         table_data = [header_row]
         
@@ -248,35 +484,47 @@ def export_to_pdf():
         
         # Sütun genişlikleri
         num_cols = len(dates) + 1
-        col_width = (26*cm) / num_cols
+        available_width = 26*cm
+        col_width = available_width / num_cols
         col_widths = [col_width] * num_cols
-        col_widths[0] = 2.5*cm  # Saat sütunu
+        col_widths[0] = min(2.5*cm, col_width)  # Saat sütunu
         
         # Tablo oluştur
         table = Table(table_data, colWidths=col_widths)
         
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+        # Alternatif satır renkleri için stil
+        table_style_cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e5e7eb')),
+            ('BACKGROUND', (0, 1), (0, -1), colors.HexColor('#e5e7eb')),
             ('FONTNAME', (0, 0), (-1, 0), font_name_bold),
-            ('FONTNAME', (0, 0), (0, -1), font_name_bold),
+            ('FONTNAME', (0, 1), (0, -1), font_name_bold),
             ('FONTNAME', (1, 1), (-1, -1), font_name),
             ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ])
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]
         
-        table.setStyle(table_style)
+        # Sınav olan hücrelere arka plan rengi
+        for row_idx, time_slot in enumerate(time_slots, 1):
+            for col_idx, date in enumerate(dates, 1):
+                key = (date, time_slot)
+                if key in calendar_data and calendar_data[key]:
+                    table_style_cmds.append(
+                        ('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), colors.HexColor('#dbeafe'))
+                    )
+        
+        table.setStyle(TableStyle(table_style_cmds))
         elements.append(table)
-        elements.append(PageBreak())  # Her bölüm yeni sayfada
-    
-    # Sınav yoksa
-    if len(elements) <= 3:
-        elements.append(Paragraph("Henuz planlanmis sinav bulunmamaktadir.", styles['Normal']))
+        
+        # Her bölüm yeni sayfada
+        if idx < len(dept_with_exams) - 1:
+            elements.append(PageBreak())
     
     doc.build(elements)
     return file_path

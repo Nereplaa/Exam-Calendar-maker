@@ -67,7 +67,7 @@ def init_database():
     # Bağlantıyı kapat
     connection.close()
     
-    print("Veritabanı başarıyla oluşturuldu!")
+    print("Veritabani basariyla olusturuldu!")
 
 
 def load_seed_data():
@@ -89,7 +89,7 @@ def load_seed_data():
     # Eğer fakülte varsa, seed verileri zaten yüklenmiş demektir
     if faculty_count > 0:
         connection.close()
-        print("Örnek veriler zaten yüklenmiş.")
+        print("Ornek veriler zaten yuklenmis.")
         return
     
     # Bağlantıyı kapat
@@ -122,7 +122,7 @@ def load_seed_data():
         
         cursor.executescript(students_sql)
         connection.commit()
-        print(f"800+ öğrenci verisi yüklendi!")
+        print(f"800+ ogrenci verisi yuklendi!")
     
     # Bağlantıyı kapat
     connection.close()
@@ -130,7 +130,7 @@ def load_seed_data():
     # Admin şifresini hashle
     hash_admin_password()
     
-    print("Örnek veriler başarıyla yüklendi!")
+    print("Ornek veriler basariyla yuklendi!")
 
 
 def hash_admin_password():
@@ -177,7 +177,7 @@ def hash_admin_password():
     # Bağlantıyı kapat
     connection.close()
     
-    print("Admin şifresi hashlendi.")
+    print("Admin sifresi hashlendi.")
 
 
 def execute_query(query, parameters=None):

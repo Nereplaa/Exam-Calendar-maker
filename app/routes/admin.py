@@ -28,7 +28,8 @@ from app.models.course import (
 )
 from app.models.classroom import (
     get_all_classrooms, get_classroom_by_id,
-    create_classroom, update_classroom, delete_classroom
+    create_classroom, update_classroom, delete_classroom,
+    get_special_classrooms
 )
 from app.models.availability import (
     get_availability_by_instructor, get_availability_by_id,
@@ -539,6 +540,9 @@ def course_add():
         departments = [dept] if dept else []
         instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
+    # Özel derslikler (Lab, Dekanlık, vb.)
+    special_classrooms = get_special_classrooms()
+    
     if request.method == 'POST':
         code = request.form.get('code')
         name = request.form.get('name')
@@ -549,24 +553,31 @@ def course_add():
         exam_type = request.form.get('exam_type', 'Yazılı')
         needs_computer = 1 if request.form.get('needs_computer') else 0
         has_exam = 1 if request.form.get('has_exam') else 0
+        special_classroom_id = request.form.get('special_classroom_id')
+        
+        # Özel derslik ID'sini integer'a çevir (boşsa None)
+        if special_classroom_id:
+            special_classroom_id = int(special_classroom_id)
+        else:
+            special_classroom_id = None
         
         # Bölüm yetkilisi sadece kendi bölümüne ders ekleyebilir
         if role != 'admin' and int(department_id) != user_dept_id:
             flash('Sadece kendi bölümünüze ders ekleyebilirsiniz!', 'error')
             return render_template('admin/course_form.html', 
                                    course=None, departments=departments, 
-                                   instructors=instructors)
+                                   instructors=instructors, special_classrooms=special_classrooms)
         
         if not code or not name or not department_id or not instructor_id:
             flash('Zorunlu alanları doldurunuz!', 'error')
             return render_template('admin/course_form.html', 
                                    course=None, departments=departments, 
-                                   instructors=instructors)
+                                   instructors=instructors, special_classrooms=special_classrooms)
         
         new_id = create_course(
             code, name, int(department_id), int(instructor_id),
             int(student_count), int(exam_duration), exam_type,
-            needs_computer, has_exam
+            needs_computer, has_exam, special_classroom_id=special_classroom_id
         )
         
         if new_id:
@@ -577,7 +588,7 @@ def course_add():
     
     return render_template('admin/course_form.html', 
                            course=None, departments=departments, 
-                           instructors=instructors)
+                           instructors=instructors, special_classrooms=special_classrooms)
 
 
 @bp.route('/courses/edit/<int:course_id>', methods=['GET', 'POST'])
@@ -613,6 +624,9 @@ def course_edit(course_id):
         departments = [dept] if dept else []
         instructors = get_instructors_by_department(user_dept_id) if user_dept_id else []
     
+    # Özel derslikler
+    special_classrooms = get_special_classrooms()
+    
     if request.method == 'POST':
         code = request.form.get('code')
         name = request.form.get('name')
@@ -623,17 +637,24 @@ def course_edit(course_id):
         exam_type = request.form.get('exam_type', 'Yazılı')
         needs_computer = 1 if request.form.get('needs_computer') else 0
         has_exam = 1 if request.form.get('has_exam') else 0
+        special_classroom_id = request.form.get('special_classroom_id')
+        
+        # Özel derslik ID'sini integer'a çevir (boşsa None)
+        if special_classroom_id:
+            special_classroom_id = int(special_classroom_id)
+        else:
+            special_classroom_id = None
         
         if not code or not name or not department_id or not instructor_id:
             flash('Zorunlu alanları doldurunuz!', 'error')
             return render_template('admin/course_form.html', 
                                    course=course, departments=departments, 
-                                   instructors=instructors)
+                                   instructors=instructors, special_classrooms=special_classrooms)
         
         success = update_course(
             course_id, code, name, int(department_id), int(instructor_id),
             int(student_count), int(exam_duration), exam_type,
-            needs_computer, has_exam
+            needs_computer, has_exam, special_classroom_id=special_classroom_id
         )
         
         if success:
@@ -644,7 +665,7 @@ def course_edit(course_id):
     
     return render_template('admin/course_form.html', 
                            course=course, departments=departments, 
-                           instructors=instructors)
+                           instructors=instructors, special_classrooms=special_classrooms)
 
 
 @bp.route('/courses/delete/<int:course_id>')
@@ -698,18 +719,22 @@ def classroom_add():
         flash('Bu sayfaya erişim yetkiniz yok!', 'error')
         return redirect(url_for('auth.login'))
     
+    # Derslik tipleri
+    classroom_types = ['Normal', 'Lab', 'Dekanlık', 'Konferans', 'Amfi']
+    
     if request.method == 'POST':
         name = request.form.get('name')
         building = request.form.get('building')
         capacity = request.form.get('capacity', 0)
         has_computer = 1 if request.form.get('has_computer') else 0
         is_available = 1 if request.form.get('is_available') else 0
+        classroom_type = request.form.get('classroom_type', 'Normal')
         
         if not name or not capacity:
             flash('Derslik adı ve kapasite zorunludur!', 'error')
-            return render_template('admin/classroom_form.html', classroom=None)
+            return render_template('admin/classroom_form.html', classroom=None, classroom_types=classroom_types)
         
-        new_id = create_classroom(name, building, int(capacity), has_computer, is_available)
+        new_id = create_classroom(name, building, int(capacity), has_computer, is_available, classroom_type)
         
         if new_id:
             flash('Derslik başarıyla eklendi!', 'success')
@@ -717,7 +742,7 @@ def classroom_add():
         else:
             flash('Bu derslik adı zaten mevcut!', 'error')
     
-    return render_template('admin/classroom_form.html', classroom=None)
+    return render_template('admin/classroom_form.html', classroom=None, classroom_types=classroom_types)
 
 
 @bp.route('/classrooms/edit/<int:classroom_id>', methods=['GET', 'POST'])
@@ -729,6 +754,9 @@ def classroom_edit(classroom_id):
     
     classroom = get_classroom_by_id(classroom_id)
     
+    # Derslik tipleri
+    classroom_types = ['Normal', 'Lab', 'Dekanlık', 'Konferans', 'Amfi']
+    
     if not classroom:
         flash('Derslik bulunamadı!', 'error')
         return redirect(url_for('admin.classrooms_list'))
@@ -739,13 +767,14 @@ def classroom_edit(classroom_id):
         capacity = request.form.get('capacity', 0)
         has_computer = 1 if request.form.get('has_computer') else 0
         is_available = 1 if request.form.get('is_available') else 0
+        classroom_type = request.form.get('classroom_type', 'Normal')
         
         if not name or not capacity:
             flash('Derslik adı ve kapasite zorunludur!', 'error')
-            return render_template('admin/classroom_form.html', classroom=classroom)
+            return render_template('admin/classroom_form.html', classroom=classroom, classroom_types=classroom_types)
         
         success = update_classroom(classroom_id, name, building, int(capacity), 
-                                   has_computer, is_available)
+                                   has_computer, is_available, classroom_type)
         
         if success:
             flash('Derslik başarıyla güncellendi!', 'success')
@@ -753,7 +782,7 @@ def classroom_edit(classroom_id):
         else:
             flash('Güncelleme sırasında hata oluştu!', 'error')
     
-    return render_template('admin/classroom_form.html', classroom=classroom)
+    return render_template('admin/classroom_form.html', classroom=classroom, classroom_types=classroom_types)
 
 
 @bp.route('/classrooms/delete/<int:classroom_id>')

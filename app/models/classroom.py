@@ -87,7 +87,7 @@ def get_computer_classrooms():
     return results
 
 
-def create_classroom(name, building, capacity, has_computer, is_available):
+def create_classroom(name, building, capacity, has_computer, is_available, classroom_type='Normal'):
     """
     Yeni derslik oluşturur.
     
@@ -97,6 +97,7 @@ def create_classroom(name, building, capacity, has_computer, is_available):
         capacity: Kapasite
         has_computer: Bilgisayar var mı?
         is_available: Sınav için uygun mu?
+        classroom_type: Derslik tipi (Normal, Lab, Dekanlık, Konferans, Amfi)
     
     Döndürür:
         classroom_id: Oluşturulan dersliğin ID'si veya None
@@ -110,15 +111,15 @@ def create_classroom(name, building, capacity, has_computer, is_available):
     
     # Yeni derslik ekle
     query = """
-        INSERT INTO classrooms (name, building, capacity, has_computer, is_available) 
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO classrooms (name, building, capacity, has_computer, is_available, classroom_type) 
+        VALUES (?, ?, ?, ?, ?, ?)
     """
-    new_id = execute_insert(query, (name, building, capacity, has_computer, is_available))
+    new_id = execute_insert(query, (name, building, capacity, has_computer, is_available, classroom_type))
     
     return new_id
 
 
-def update_classroom(classroom_id, name, building, capacity, has_computer, is_available):
+def update_classroom(classroom_id, name, building, capacity, has_computer, is_available, classroom_type='Normal'):
     """
     Derslik bilgilerini günceller.
     
@@ -128,14 +129,54 @@ def update_classroom(classroom_id, name, building, capacity, has_computer, is_av
     # SQL sorgusu
     query = """
         UPDATE classrooms 
-        SET name = ?, building = ?, capacity = ?, has_computer = ?, is_available = ?
+        SET name = ?, building = ?, capacity = ?, has_computer = ?, is_available = ?, classroom_type = ?
         WHERE id = ?
     """
     
     # Sorguyu çalıştır
-    affected_rows = execute_update(query, (name, building, capacity, has_computer, is_available, classroom_id))
+    affected_rows = execute_update(query, (name, building, capacity, has_computer, is_available, classroom_type, classroom_id))
     
     return affected_rows > 0
+
+
+def get_classrooms_by_type(classroom_type):
+    """
+    Belirli tipteki derslikleri getirir.
+    
+    Parametreler:
+        classroom_type: Derslik tipi (Normal, Lab, Dekanlık, Konferans, Amfi)
+    
+    Döndürür:
+        classrooms: Derslik listesi
+    """
+    query = """
+        SELECT * FROM classrooms 
+        WHERE classroom_type = ? AND is_available = 1
+        ORDER BY capacity DESC
+    """
+    
+    results = execute_query(query, (classroom_type,))
+    
+    return results
+
+
+def get_special_classrooms():
+    """
+    Özel derslikleri getirir (Lab, Dekanlık, Konferans, Amfi).
+    Normal derslikler hariç.
+    
+    Döndürür:
+        classrooms: Özel derslik listesi
+    """
+    query = """
+        SELECT * FROM classrooms 
+        WHERE classroom_type != 'Normal' AND is_available = 1
+        ORDER BY classroom_type, name
+    """
+    
+    results = execute_query(query)
+    
+    return results
 
 
 def delete_classroom(classroom_id):

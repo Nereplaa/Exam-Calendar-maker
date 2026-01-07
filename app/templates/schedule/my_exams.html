@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Sınav Takvimim{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <div class="container">
+        <!-- Sayfa Başlığı -->
+        <div class="page-header">
+            <h1>📅 Sınav Takvimim</h1>
+            {% if user_info %}
+            <div class="user-info-badge">
+                {% if user_info.type == 'student' %}
+                    <span class="badge badge-student">🎓 {{ user_info.name }}</span>
+                    <span class="badge badge-secondary">{{ user_info.student_no }}</span>
+                {% else %}
+                    <span class="badge badge-instructor">👨‍🏫 {{ user_info.title }} {{ user_info.name }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- İstatistikler -->
+        <div class="stats-row">
+            <div class="stat-item stat-primary">
+                <span class="stat-number">{{ stats.total_exams }}</span>
+                <span class="stat-label">Toplam Sınavım</span>
+            </div>
+            {% if stats.supervised_exams > 0 %}
+            <div class="stat-item stat-warning">
+                <span class="stat-number">{{ stats.supervised_exams }}</span>
+                <span class="stat-label">Gözetmenlik</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sınav Takvimi -->
+        <div class="card">
+            <div class="card-header">
+                <h2>📚 Sınavlarım</h2>
+            </div>
+            
+            {% if exams|length > 0 %}
+            <table class="table schedule-table my-exams-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Saat</th>
+                        <th>Ders Kodu</th>
+                        <th>Ders Adı</th>
+                        <th>Bölüm</th>
+                        <th>Derslik</th>
+                        {% if user_info and user_info.type == 'student' %}
+                        <th>Dersin Hocası</th>
+                        {% endif %}
+                        <th>Öğrenci Sayısı</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr class="exam-row {% if loop.index <= 3 %}upcoming{% endif %}">
+                        <td>
+                            <strong class="exam-date">{{ exam.exam_date }}</strong>
+                        </td>
+                        <td>
+                            <span class="exam-time">{{ exam.start_time }} - {{ exam.end_time }}</span>
+                        </td>
+                        <td><span class="badge badge-primary">{{ exam.course_code }}</span></td>
+                        <td>{{ exam.course_name }}</td>
+                        <td>{{ exam.department_name }}</td>
+                        <td><span class="badge badge-classroom">{{ exam.classroom_name }}</span></td>
+                        {% if user_info and user_info.type == 'student' %}
+                        <td>{{ exam.instructor_name }}</td>
+                        {% endif %}
+                        <td>{{ exam.student_count }} kişi</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3>Henüz sınavınız yok</h3>
+                {% if user_info and user_info.type == 'student' %}
+                <p>Kayıtlı olduğunuz dersler için henüz sınav planlanmamış.</p>
+                {% else %}
+                <p>Verdiğiniz dersler için henüz sınav planlanmamış.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Gözetmenlik Görevleri (Sadece Hocalar için) -->
+        {% if supervised_exams and supervised_exams|length > 0 %}
+        <div class="card mt-4">
+            <div class="card-header card-header-warning">
+                <h2>👁️ Gözetmenlik Görevlerim</h2>
+            </div>
+            
+            <table class="table schedule-table supervised-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Saat</th>
+                        <th>Ders Kodu</th>
+                        <th>Ders Adı</th>
+                        <th>Dersin Hocası</th>
+                        <th>Derslik</th>
+                        <th>Öğrenci</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in supervised_exams %}
+                    <tr>
+                        <td><strong>{{ exam.exam_date }}</strong></td>
+                        <td>{{ exam.start_time }} - {{ exam.end_time }}</td>
+                        <td><span class="badge badge-warning">{{ exam.course_code }}</span></td>
+                        <td>{{ exam.course_name }}</td>
+                        <td>{{ exam.instructor_name }}</td>
+                        <td><span class="badge">{{ exam.classroom_name }}</span></td>
+                        <td>{{ exam.student_count }} kişi</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Alt Linkler -->
+        <div class="action-links">
+            <a href="{{ url_for('schedule.view_schedule') }}" class="btn btn-secondary">
+                📅 Tüm Sınav Programını Gör
+            </a>
+            <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline">
+                ← Panele Dön
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Kişisel Sınav Takvimi Özel Stilleri */
+.user-info-badge {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.badge-student {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.badge-instructor {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.badge-secondary {
+    background: #6b7280;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+}
+
+.badge-classroom {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.stat-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.stat-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.stat-primary .stat-number,
+.stat-warning .stat-number {
+    color: white;
+}
+
+.stat-primary .stat-label,
+.stat-warning .stat-label {
+    color: rgba(255,255,255,0.9);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    padding: 15px 20px;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #1e40af;
+}
+
+.card-header-warning {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-bottom-color: #f59e0b;
+}
+
+.card-header-warning h2 {
+    color: #92400e;
+}
+
+.my-exams-table .exam-row.upcoming {
+    background: linear-gradient(90deg, #fef3c7 0%, transparent 30%);
+}
+
+.my-exams-table .exam-date {
+    color: #1e40af;
+    font-size: 1.05em;
+}
+
+.my-exams-table .exam-time {
+    background: #e0e7ff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    color: #4338ca;
+}
+
+.supervised-table {
+    background: #fffbeb;
+}
+
+.action-links {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid #6b7280;
+    color: #6b7280;
+}
+
+.btn-outline:hover {
+    background: #6b7280;
+    color: white;
+}
+
+.mt-4 {
+    margin-top: 2rem;
+}
+
+/* Boş durum */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 4em;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    color: #374151;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #6b7280;
+}
+</style>
+{% endblock %}
+

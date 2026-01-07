@@ -80,6 +80,7 @@
                         <th>Ders Kodu</th>
                         <th>Ders Adı</th>
                         <th>Bölüm</th>
+                        <th>Dersin Hocası</th>
                         <th>Derslik</th>
                         <th>Gözetmen</th>
                         <th>Öğrenci</th>
@@ -98,8 +99,9 @@
                         <td><span class="badge badge-primary">{{ exam.course_code }}</span></td>
                         <td>{{ exam.course_name }}</td>
                         <td>{{ exam.department_name }}</td>
+                        <td><strong>{{ exam.instructor_name }}</strong></td>
                         <td><span class="badge">{{ exam.classroom_name }}</span></td>
-                        <td>{{ exam.supervisor_name or exam.instructor_name }}</td>
+                        <td>{{ exam.supervisor_name or '-' }}</td>
                         <td>{{ exam.student_count }}</td>
                         {% if session.get('role') == 'admin' %}
                         <td>

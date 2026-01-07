@@ -144,7 +144,7 @@ def delete_all_availability_by_instructor(instructor_id):
 def check_instructor_available(instructor_id, day_of_week, start_time, end_time):
     """
     Öğretim üyesinin belirtilen gün ve saatte müsait olup olmadığını kontrol eder.
-    Dersi varsa müsait değil, yoksa müsait.
+    Sınav haftasında ders olmadığı için, hoca o gün okula geliyor mu kontrol edilir.
     
     Parametreler:
         instructor_id: Öğretim üyesi ID
@@ -155,26 +155,24 @@ def check_instructor_available(instructor_id, day_of_week, start_time, end_time)
     Döndürür:
         is_available: Müsait mi? (True/False)
     """
-    # O gün ve saatte dersi var mı kontrol et
-    # Çakışma: ders_baş < sınav_bit AND ders_bit > sınav_baş
+    # instructor_availability tablosundan o gün müsait mi kontrol et
     query = """
-        SELECT id FROM courses 
+        SELECT id, start_time, end_time FROM instructor_availability 
         WHERE instructor_id = ? 
           AND day_of_week = ?
-          AND class_start_time IS NOT NULL
-          AND class_end_time IS NOT NULL
-          AND class_start_time < ?
-          AND class_end_time > ?
+          AND is_available = 1
+          AND start_time <= ?
+          AND end_time >= ?
     """
     
-    results = execute_query(query, (instructor_id, day_of_week, end_time, start_time))
+    results = execute_query(query, (instructor_id, day_of_week, start_time, end_time))
     
-    # Ders varsa müsait değil
+    # Müsaitlik kaydı varsa müsait
     if len(results) > 0:
-        return False
+        return True
     
-    # Ders yoksa müsait
-    return True
+    # Müsaitlik kaydı yoksa müsait değil
+    return False
 
 
 def get_all_availability_with_instructor():

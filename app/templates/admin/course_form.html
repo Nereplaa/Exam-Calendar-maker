@@ -145,6 +145,26 @@
                     </div>
                 </div>
 
+                <!-- Özel Derslik Ataması -->
+                <div class="form-section">
+                    <h3 class="form-section-title">🏫 Özel Derslik Ataması</h3>
+                    <p class="form-section-desc">Bu ders için özel bir derslik belirlenmişse (Dekanlık, Lab, Konferans vb.) seçin. Seçilmezse otomatik atanır.</p>
+                    
+                    <div class="form-group">
+                        <label for="special_classroom_id" class="form-label">Özel Derslik</label>
+                        <select id="special_classroom_id" name="special_classroom_id" class="form-control">
+                            <option value="">-- Otomatik Ata (Özel derslik yok) --</option>
+                            {% if special_classrooms %}
+                            {% for classroom in special_classrooms %}
+                            <option value="{{ classroom.id }}" {{ 'selected' if course and course.special_classroom_id == classroom.id else '' }}>
+                                {{ classroom.name }} ({{ classroom.classroom_type }}) - {{ classroom.capacity }} kişilik
+                            </option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Checkbox'lar -->
                 <div class="form-group checkbox-group">
                     <label class="checkbox-label">

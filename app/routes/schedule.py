@@ -8,10 +8,14 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file
 from datetime import datetime, timedelta
 
-from app.models.exam import get_all_exams, delete_exam, delete_all_exams, get_exams_by_department
+from app.models.exam import (
+    get_all_exams, delete_exam, delete_all_exams, get_exams_by_department,
+    get_exams_by_student, get_exams_by_instructor, get_supervised_exams_by_instructor
+)
 from app.models.department import get_all_departments
 from app.scheduler import generate_exam_schedule, get_schedule_statistics
 from app.export import export_to_pdf, export_to_excel
+from app.database import execute_query
 
 # Blueprint oluştur
 bp = Blueprint('schedule', __name__, url_prefix='/schedule')
@@ -76,6 +80,75 @@ def view_by_department(department_id):
                            departments=departments,
                            stats=stats,
                            selected_department=department_id)
+
+
+@bp.route('/my-exams')
+def my_exams():
+    """
+    Giriş yapan kullanıcının kişisel sınav takvimini görüntüler.
+    Öğrenci: Kayıtlı olduğu derslerin sınavları
+    Hoca: Verdiği derslerin sınavları + Gözetmenlik görevleri
+    """
+    # Giriş kontrolü
+    if not session.get('user_id'):
+        flash('Bu sayfayı görüntülemek için giriş yapmalısınız!', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    user_id = session.get('user_id')
+    role = session.get('role')
+    
+    exams = []
+    supervised_exams = []
+    user_info = None
+    
+    if role == 'ogrenci':
+        # Öğrenci: student tablosundan student_id bul
+        query = "SELECT id, student_no, name FROM students WHERE user_id = ?"
+        results = execute_query(query, (user_id,))
+        
+        if results:
+            student = results[0]
+            user_info = {
+                'type': 'student',
+                'name': student['name'],
+                'student_no': student['student_no']
+            }
+            exams = get_exams_by_student(student['id'])
+        else:
+            flash('Öğrenci kaydınız bulunamadı!', 'warning')
+    
+    elif role == 'hoca':
+        # Hoca: instructors tablosundan instructor_id bul
+        query = "SELECT id, name, title FROM instructors WHERE user_id = ?"
+        results = execute_query(query, (user_id,))
+        
+        if results:
+            instructor = results[0]
+            user_info = {
+                'type': 'instructor',
+                'name': instructor['name'],
+                'title': instructor['title']
+            }
+            exams = get_exams_by_instructor(instructor['id'])
+            supervised_exams = get_supervised_exams_by_instructor(instructor['id'])
+        else:
+            flash('Öğretim üyesi kaydınız bulunamadı!', 'warning')
+    
+    elif role == 'admin' or role == 'bolum_yetkili':
+        # Admin ve bölüm yetkilisi genel sayfaya yönlendirilir
+        return redirect(url_for('schedule.view_schedule'))
+    
+    # İstatistikler
+    stats = {
+        'total_exams': len(exams),
+        'supervised_exams': len(supervised_exams) if supervised_exams else 0
+    }
+    
+    return render_template('schedule/my_exams.html',
+                           exams=exams,
+                           supervised_exams=supervised_exams,
+                           user_info=user_info,
+                           stats=stats)
 
 
 @bp.route('/generate', methods=['GET', 'POST'])
@@ -189,13 +262,22 @@ def export_pdf():
     # PDF oluştur
     file_path = export_to_pdf()
     
-    # Dosyayı indir
-    return send_file(
+    # Dosya adını timestamp ile oluştur (cache önleme)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    download_name = f'sinav_programi_{timestamp}.pdf'
+    
+    # Dosyayı indir (cache önleme header'ları ile)
+    response = send_file(
         file_path,
         as_attachment=True,
-        download_name='sinav_programi.pdf',
+        download_name=download_name,
         mimetype='application/pdf'
     )
+    # Cache önleme
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @bp.route('/export/excel')
@@ -211,11 +293,20 @@ def export_excel():
     # Excel oluştur
     file_path = export_to_excel()
     
-    # Dosyayı indir
-    return send_file(
+    # Dosya adını timestamp ile oluştur (cache önleme)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    download_name = f'sinav_programi_{timestamp}.xlsx'
+    
+    # Dosyayı indir (cache önleme header'ları ile)
+    response = send_file(
         file_path,
         as_attachment=True,
-        download_name='sinav_programi.xlsx',
+        download_name=download_name,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+    # Cache önleme
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 

@@ -39,6 +39,21 @@ def create_app():
     static_folder = os.path.join(os.path.dirname(__file__), 'static')
     app.static_folder = static_folder
     
+    # Jinja filter: Unvanları kaldırarak sadece isim göster
+    import re
+    @app.template_filter('strip_title')
+    def strip_title_filter(name):
+        """
+        Hoca isminden unvanı kaldırır.
+        Örnek: "Dr. Öğr. Üyesi ELİF PINAR HACIBEYOĞLU" -> "ELİF PINAR HACIBEYOĞLU"
+        """
+        if not name:
+            return name
+        # Unvan kalıplarını kaldır
+        pattern = r'^(Prof\.|Doç\.|Dr\.|Öğr\.Gör\.|Öğr\.)\s*(Dr\.)?\s*(Öğr\.)?\s*(Gör\.)?\s*(Üyesi)?\s*'
+        cleaned = re.sub(pattern, '', name).strip()
+        return cleaned if cleaned else name
+    
     # Veritabanını başlat
     from app.database import init_database, load_seed_data
     init_database()

@@ -13,7 +13,7 @@
                     <option value="">Tüm Öğretim Üyeleri</option>
                     {% for instructor in instructors %}
                     <option value="{{ instructor.id }}" {{ 'selected' if selected_instructor==instructor.id else '' }}>
-                        {{ instructor.title }} {{ instructor.name }}
+                        {{ instructor.name|strip_title }}
                     </option>
                     {% endfor %}
                 </select>
@@ -46,7 +46,7 @@
                                 {% for item in calendar_data[day][hour] %}
                                 <div class="availability-item {% if item.is_available %}available{% else %}busy{% endif %}"
                                     onclick="event.stopPropagation(); openEditModal({{ item.id }}, '{{ item.instructor_name }}', '{{ day }}', '{{ item.start_time }}', '{{ item.end_time }}', {{ item.is_available }})">
-                                    <span class="instructor-name">{{ item.instructor_name }}</span>
+                                    <span class="instructor-name">{{ item.instructor_name|strip_title }}</span>
                                     <span class="status-icon">{% if item.is_available %}✓{% else %}✗{% endif %}</span>
                                 </div>
                                 {% endfor %}
@@ -96,7 +96,7 @@
                     <label class="form-label">Öğretim Üyesi</label>
                     <select name="instructor_id" class="form-control" required>
                         {% for instructor in instructors %}
-                        <option value="{{ instructor.id }}">{{ instructor.title }} {{ instructor.name }}</option>
+                        <option value="{{ instructor.id }}">{{ instructor.name|strip_title }}</option>
                         {% endfor %}
                     </select>
                 </div>
